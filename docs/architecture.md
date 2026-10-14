@@ -43,8 +43,6 @@ backend/
         django_user_repository.py
     serializers/
       user.py             # current-user response representation
-    test_models.py
-    test_repositories.py
   authentication/         # registration, login, JWT sessions, and auth HTTP API
     providers/            # one implementation per Django/JWT operation
     errors/               # one auth error per module
@@ -52,7 +50,12 @@ backend/
     serializers/          # login and registration validation
     services/             # one use case per module
     views/                # one HTTP endpoint per module; shared cookie/CSRF helpers
-    test_*.py              # focused module and endpoint tests
+  tests/                  # tests kept outside application modules
+    accounts/
+      test_models.py
+      test_repositories.py
+    authentication/
+      test_*.py
   recipes/                # recipes, ingredients, and recipe operations
   shopping_lists/         # groups, list items, and shopping-list operations
 ```

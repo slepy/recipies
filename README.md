@@ -16,7 +16,7 @@ Open the frontend at <http://localhost:5173>. The API is available at <http://12
 For backend checks:
 
 ```sh
-docker compose run --rm backend python manage.py test accounts authentication
+docker compose run --rm backend python manage.py test tests
 ```
 
 For frontend checks:
