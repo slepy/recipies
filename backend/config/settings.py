@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "accounts",
     "authentication.apps.AuthenticationConfig",
+    "integrations.apps.IntegrationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -120,3 +121,4 @@ SIMPLE_JWT = {
 
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_SECURE = not DEBUG
+INTEGRATIONS_ENCRYPTION_KEY = os.getenv("INTEGRATIONS_ENCRYPTION_KEY", "")
