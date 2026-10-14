@@ -28,14 +28,24 @@ Organize Django code by product domain, with separate Django apps as the codebas
 ```text
 backend/
   config/                 # Django settings, root URLs, ASGI/WSGI
-  accounts/               # users, JWT issuance, refresh, and revocation
+  accounts/               # user identity and persistence
+    models/               # User and UserManager, separately defined
+    repositories/         # user persistence contract and Django implementation
+  authentication/         # registration, login, JWT sessions, and auth HTTP API
+    adapters/             # Django authentication and SimpleJWT implementations
+    ports/                # separate authentication, issuance, rotation, and revocation contracts
+    serializers/          # auth request validation
+    services/             # registration, authentication, and token use cases
+    views/                # HTTP endpoints and cookie handling
   recipes/                # recipes, ingredients, and recipe operations
   shopping_lists/         # groups, list items, and shopping-list operations
 ```
 
-The listed apps are a target boundary, not a requirement to create empty apps before they are needed. A Django app owns its domain models and behavior. Cross-app dependencies should be explicit and point toward stable interfaces; avoid circular imports. Keep HTTP views focused on translating requests and responses. Put domain operations in the owning app, extracting a service only when a workflow has enough logic to make that separation useful. Use Django's built-in ORM and migrations rather than creating a second persistence abstraction without a demonstrated need.
+Each Django app owns one product capability. `accounts` owns user identity, schema, and persistence; `authentication` owns credential checks, registration, JWT lifecycle, and the related HTTP API. Authentication depends on the user repository contract rather than importing ORM operations into use cases. Avoid circular imports. Use Django's built-in ORM and migrations rather than creating a second persistence abstraction without a demonstrated need.
 
-The frontend communicates with Django through a JSON API. Django REST Framework is the recommended API implementation, but it has not yet been selected.
+Keep each layer's reason to change narrow: a model defines account data and invariants; its manager creates user records; a repository owns ORM persistence; a serializer owns request validation; a view translates HTTP; a service implements one use case; an adapter integrates one framework/provider. `authentication/container.py` is the composition root. Do not add generic service registries or repositories for unrelated domains without a concrete need.
+
+The frontend communicates with Django through a Django REST Framework JSON API. The development frontend uses a same-origin Vite proxy for `/api` requests.
 
 ### Authentication: JWT
 
@@ -50,7 +60,7 @@ The signing key must come from environment/secret configuration, not source cont
 
 ### Persistence and Local Development
 
-Use Django ORM models and migrations with PostgreSQL as the recommended relational database. For local development, Docker Compose can run a pinned PostgreSQL image with a named volume; application secrets and database credentials belong in local environment configuration and must not be committed. Docker is optional: a developer may run PostgreSQL directly. A managed PostgreSQL service can be used outside local development. SQLite remains a simpler prototype alternative but is not the proposed target for multi-user use.
+Use Django ORM models and migrations with PostgreSQL. Docker Compose runs the local database and both app processes with a named data volume; secrets and database credentials belong in ignored local environment configuration and must not be committed. A managed PostgreSQL service can be used outside local development.
 
 ## Frontend: Component-Based Architecture
 
@@ -93,7 +103,11 @@ A component catalog tool such as Storybook may help as the library grows, but it
 
 Apply the principles pragmatically; they guide decisions rather than require a particular number of layers or classes.
 
-- **SOLID:** give modules a clear reason to change; keep component props and API contracts focused; make implementations substitutable where a real interface exists; point feature code at stable boundaries rather than transport details when that reduces coupling.
+- **SRP:** give each class and module one primary reason to change. Keep registration, credential authentication, token lifecycle, user persistence, and HTTP handling separate.
+- **OCP and LSP:** use the authentication and token provider ports to substitute a compatible adapter without changing use cases; do not add extension points where no alternative is needed.
+- **ISP:** keep repository, credential authentication, token issuance, refresh rotation, and revocation ports separate so consumers depend only on operations they use.
+- **DIP:** application services depend on protocols; Django ORM, Django authentication, and SimpleJWT are wired in the composition root.
+- Keep React component props and API contracts focused as well; feature components own UI behavior, shared UI remains domain-neutral.
 - **DRY:** share stable behavior when duplication is real. Similar-looking code with different domain meaning does not automatically need one abstraction.
 - **KISS:** prefer the simplest implementation that meets the current requirements. Avoid generic frameworks, premature service layers, and indirection without a concrete use case.
 - **OOP:** use Django models and other framework-supported classes where they fit. In React, prefer function components and composition; OOP does not mean turning every UI element or operation into a class.
@@ -108,8 +122,6 @@ Apply the principles pragmatically; they guide decisions rather than require a p
 
 ## Open Decisions
 
-- Django REST Framework or another Django API approach.
-- Confirm PostgreSQL as the selected database and choose the Docker Compose image/version and local secret setup.
-- Django REST Framework and the JWT library.
+- Deployment environment, production secret management, and allowed frontend origins.
 - Frontend routing, component test tooling, and whether/when to add Storybook.
-- Same-origin development and deployment arrangement for refresh cookies, CSRF, and API requests.
+- Production frontend/API origin arrangement for refresh cookies, CSRF, and API requests.

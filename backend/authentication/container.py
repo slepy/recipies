@@ -1,0 +1,18 @@
+from accounts.repositories.django_user_repository import DjangoUserRepository
+from authentication.adapters.django_authentication import DjangoAuthenticationProvider
+from authentication.adapters.simplejwt_issuer import SimpleJWTIssuer
+from authentication.adapters.simplejwt_refresh_revoker import SimpleJWTRefreshTokenRevoker
+from authentication.adapters.simplejwt_refresh_rotator import SimpleJWTRefreshTokenRotator
+from authentication.services.authentication_service import AuthenticationService
+from authentication.services.registration_service import RegistrationService
+from authentication.services.refresh_token_revocation_service import RefreshTokenRevocationService
+from authentication.services.refresh_token_rotation_service import RefreshTokenRotationService
+from authentication.services.token_issuance_service import TokenIssuanceService
+
+
+user_repository = DjangoUserRepository()
+registration_service = RegistrationService(user_repository)
+authentication_service = AuthenticationService(DjangoAuthenticationProvider())
+token_issuance_service = TokenIssuanceService(SimpleJWTIssuer())
+refresh_token_rotation_service = RefreshTokenRotationService(SimpleJWTRefreshTokenRotator())
+refresh_token_revocation_service = RefreshTokenRevocationService(SimpleJWTRefreshTokenRevoker())
