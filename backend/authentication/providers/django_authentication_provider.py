@@ -2,8 +2,8 @@ from typing import Any
 
 from django.contrib.auth import authenticate
 
-from accounts.models.contracts import AccountUser
-from authentication.ports.authentication_provider import AuthenticationProvider
+from accounts.contracts.account_user import AccountUser
+from authentication.contracts.authentication_provider import AuthenticationProvider
 
 
 class DjangoAuthenticationProvider(AuthenticationProvider):

@@ -1,4 +1,4 @@
-from accounts.repositories.contracts import UserRepository
+from accounts.repositories.contracts.user_repository import UserRepository
 
 
 class RegistrationService:

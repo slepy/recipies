@@ -1,7 +1,7 @@
 from django.contrib.auth import password_validation
 from rest_framework import serializers
 
-from accounts.errors import EmailAlreadyRegistered
+from accounts.errors.email_already_registered import EmailAlreadyRegistered
 from authentication.services.registration_service import RegistrationService
 
 

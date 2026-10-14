@@ -1,5 +1,5 @@
 from authentication.errors.invalid_credentials import InvalidCredentials
-from authentication.ports.authentication_provider import AuthenticationProvider
+from authentication.contracts.authentication_provider import AuthenticationProvider
 
 
 class AuthenticationService:

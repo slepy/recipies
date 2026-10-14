@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from accounts.models import User
-from accounts.repositories.django_user_repository import DjangoUserRepository
+from accounts.repositories.providers.django_user_repository import DjangoUserRepository
 
 
 class DjangoUserRepositoryTests(TestCase):

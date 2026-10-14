@@ -1,4 +1,4 @@
-from authentication.ports.refresh_token_revoker import RefreshTokenRevoker
+from authentication.contracts.refresh_token_revoker import RefreshTokenRevoker
 
 
 class RefreshTokenRevocationService:

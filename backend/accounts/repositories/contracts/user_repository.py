@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from accounts.models.contracts import AccountUser
+from accounts.contracts.account_user import AccountUser
 
 
 class UserRepository(Protocol):

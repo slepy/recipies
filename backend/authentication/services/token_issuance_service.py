@@ -1,6 +1,6 @@
-from accounts.models.contracts import AccountUser
-from authentication.ports.token_issuer import TokenIssuer
-from authentication.ports.token_pair import TokenPair
+from accounts.contracts.account_user import AccountUser
+from authentication.contracts.token_issuer import TokenIssuer
+from authentication.contracts.token_pair import TokenPair
 
 
 class TokenIssuanceService:

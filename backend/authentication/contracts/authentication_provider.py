@@ -1,6 +1,6 @@
 from typing import Any, Protocol
 
-from accounts.models.contracts import AccountUser
+from accounts.contracts.account_user import AccountUser
 
 
 class AuthenticationProvider(Protocol):

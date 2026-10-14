@@ -1,5 +1,5 @@
-from authentication.ports.refresh_token_rotator import RefreshTokenRotator
-from authentication.ports.token_pair import TokenPair
+from authentication.contracts.refresh_token_rotator import RefreshTokenRotator
+from authentication.contracts.token_pair import TokenPair
 
 
 class RefreshTokenRotationService:

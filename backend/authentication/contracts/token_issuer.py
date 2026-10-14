@@ -1,7 +1,7 @@
 from typing import Protocol
 
-from accounts.models.contracts import AccountUser
-from authentication.ports.token_pair import TokenPair
+from accounts.contracts.account_user import AccountUser
+from authentication.contracts.token_pair import TokenPair
 
 
 class TokenIssuer(Protocol):

@@ -12,7 +12,7 @@ The registration and login feature needs a JSON API, short-lived access JWTs, ro
 
 - Use Django REST Framework for the JSON API and SimpleJWT for access/refresh JWT handling and refresh-token blacklisting.
 - Keep `accounts` and `authentication` as separate Django apps. `accounts` owns user identity and persistence; `authentication` owns registration, login, and token sessions.
-- Keep user model and manager separate. Put user persistence behind a repository contract; keep registration, credential authentication, token issuance, refresh rotation, and revocation in separate services with narrow provider ports and adapters.
+- Keep user model and manager separate. Store contracts and providers in distinct packages, with one class per module. Put user persistence behind a repository contract; keep registration, credential authentication, token issuance, refresh rotation, and revocation in separate services.
 - Use PostgreSQL as the application database. Keep SQLite available for quick isolated Django tests when PostgreSQL integration is not needed.
 - Use Docker Compose to run PostgreSQL, Django, and the React/Vite frontend locally.
 - Proxy `/api` through Vite so the browser uses one origin in development. Protect cookie-authenticated refresh/logout endpoints with CSRF validation and an explicit origin allowlist.

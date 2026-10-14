@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from authentication.ports.token_pair import TokenPair
+from authentication.contracts.token_pair import TokenPair
 
 
 class RefreshTokenRotator(Protocol):

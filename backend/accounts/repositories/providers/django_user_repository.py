@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
-from accounts.errors import EmailAlreadyRegistered
-from accounts.models.contracts import AccountUser
-from accounts.repositories.contracts import UserRepository
+from accounts.contracts.account_user import AccountUser
+from accounts.errors.email_already_registered import EmailAlreadyRegistered
+from accounts.repositories.contracts.user_repository import UserRepository
 
 
 User = get_user_model()
