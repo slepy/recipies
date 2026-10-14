@@ -8,9 +8,9 @@
 
 ## 1. Podsumowanie
 
-Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalogowany użytkownik może skonfigurować OpenRouter lub OpenAI, zapisać własny klucz API, sprawdzić połączenie i wybrać aktywnego dostawcę. Backend przechowuje klucze zaszyfrowane i pośredniczy w żądaniach do dostawcy. W pierwszej wersji integracja służy do rozpoznawania tekstu przepisu ze zdjęcia; nie generuje ani nie zapisuje przepisu bez zatwierdzenia przez użytkownika.
+Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalogowany użytkownik może skonfigurować jednego dostawcę: OpenRouter albo OpenAI. Użytkownik podaje własny klucz API, sprawdza połączenie i aktywuje integrację. Backend przechowuje klucz w postaci zaszyfrowanej i pośredniczy w żądaniach do dostawcy. W pierwszej wersji integracja służy do rozpoznawania tekstu przepisu ze zdjęcia; nie generuje ani nie zapisuje przepisu bez zatwierdzenia przez użytkownika.
 
-**Ustalenia z rundy doprecyzowania:** obsługiwani są obaj dostawcy, użytkownik wybiera dostawcę w zakładce, klucze są konfigurowane osobno dla konta, a zastosowaniem jest import przepisu ze zdjęcia. Rekomendowane założenie pierwszej wersji: użytkownik może zachować konfigurację obu dostawców, ale aktywny jest jeden naraz. Model obsługujący obraz wybiera aplikacja; ręczny wybór modelu pozostaje poza zakresem.
+**Ustalenia z rundy doprecyzowania:** obsługiwani są obaj dostawcy, ale konto przechowuje konfigurację tylko jednego naraz. Użytkownik wybiera OpenRouter albo OpenAI w zakładce, a poprawne zapisanie nowej konfiguracji zastępuje poprzednią. Zastosowaniem jest import przepisu ze zdjęcia. Model obsługujący obraz wybiera aplikacja; ręczny wybór modelu pozostaje poza zakresem.
 
 ## 2. Problem i kontekst
 
@@ -24,7 +24,7 @@ Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalo
 | --- | --- | --- |
 | Zalogowany użytkownik | Otwiera zakładkę integracji AI | Widzi stan połączenia i może skonfigurować dostawcę |
 | Zalogowany użytkownik | Wprowadza klucz OpenRouter lub OpenAI i sprawdza połączenie | Otrzymuje jasny sukces albo bezpieczny, użyteczny błąd |
-| Zalogowany użytkownik | Przełącza aktywnego dostawcę | Kolejny import używa wybranego dostawcy i jego klucza |
+| Zalogowany użytkownik | Zmienia skonfigurowanego dostawcę | Po sprawdzeniu i zapisaniu nowego klucza kolejny import używa nowego dostawcy |
 | Zalogowany użytkownik | Importuje przepis ze zdjęcia | Obraz jest przekazany wyłącznie do aktywnego dostawcy, a wynik wraca jako edytowalny szkic |
 | Użytkownik bez poprawnej konfiguracji | Rozpoczyna import lub używa nieprawidłowego klucza | Otrzymuje informację, jak naprawić konfigurację; przepis nie zostaje utworzony |
 
@@ -33,7 +33,7 @@ Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalo
 ### W zakresie
 
 - Osobna zakładka ustawień połączenia z AI, dostępna dla zalogowanego użytkownika.
-- Wybór OpenRouter lub OpenAI, konfiguracja klucza dla każdego dostawcy, zapis i usunięcie konfiguracji.
+- Wybór OpenRouter lub OpenAI, konfiguracja jednego dostawcy naraz, zapis i usunięcie konfiguracji.
 - Sprawdzenie połączenia przed aktywacją konfiguracji oraz widoczny stan aktywnego dostawcy.
 - Bezpieczne przechowywanie kluczy po stronie backendu i używanie ich wyłącznie przez backend.
 - Przekazanie pojedynczego obrazu z tekstem przepisu do aktywnego dostawcy i zwrócenie wyniku w formacie wymaganym przez specyfikację dodawania przepisu.
@@ -54,12 +54,12 @@ Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalo
 ### Wymagania funkcjonalne
 
 - **FR-001:** System udostępnia osobną zakładkę konfiguracji integracji AI wyłącznie zalogowanemu użytkownikowi.
-  - **AC-001:** Zakładka pokazuje OpenRouter i OpenAI, stan konfiguracji każdego z nich oraz oznacza, który dostawca jest aktywny.
+  - **AC-001:** Zakładka pozwala wybrać OpenRouter albo OpenAI i pokazuje, który dostawca jest skonfigurowany oraz czy jest aktywny.
   - **AC-002:** Użytkownik bez ważnego access JWT nie może odczytać ani zmienić konfiguracji; frontend nie jest źródłem prawdy o uprawnieniach.
-- **FR-002:** Użytkownik może zapisać oddzielny klucz API dla OpenRouter i OpenAI, sprawdzić go, aktywować dostawcę lub usunąć jego konfigurację.
+- **FR-002:** Użytkownik może skonfigurować klucz API dla OpenRouter albo OpenAI, sprawdzić go, aktywować dostawcę lub usunąć konfigurację. Konto przechowuje klucz tylko jednego dostawcy naraz.
   - **AC-003:** Sprawdzenie połączenia zwraca stan powodzenia albo zrozumiały błąd bez ujawniania klucza, pełnej odpowiedzi dostawcy ani wewnętrznych szczegółów serwera.
-  - **AC-004:** Błędna konfiguracja nie zastępuje wcześniej działającej konfiguracji tego dostawcy; użytkownik może ją poprawić lub anulować zmianę.
-  - **AC-005:** Po usunięciu klucza dostawca nie może być aktywny. Jeśli był aktywny, import zostaje zablokowany do czasu skonfigurowania i aktywowania innego dostawcy.
+  - **AC-004:** Nieudane sprawdzenie nowego klucza nie zastępuje dotychczasowej konfiguracji, również gdy wybrano innego dostawcę; użytkownik może poprawić klucz lub anulować zmianę. Po pomyślnym sprawdzeniu i zapisaniu nowej konfiguracji poprzedni klucz zostaje usunięty, a poprzedni dostawca dezaktywowany.
+  - **AC-005:** Usunięcie konfiguracji usuwa zapisany klucz i dezaktywuje dostawcę. Import jest zablokowany do czasu skonfigurowania i aktywowania dostawcy.
 - **FR-003:** System używa wyłącznie aktywnego dostawcy dla żądań rozpoznawania zdjęcia.
   - **AC-006:** Backend sprawdza access JWT, aktywną konfigurację i dostępność modelu obsługującego obraz przed wywołaniem zewnętrznego API.
   - **AC-007:** Gdy brak aktywnego dostawcy, import nie wysyła obrazu i prowadzi użytkownika do zakładki konfiguracji.
@@ -89,7 +89,7 @@ Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalo
 - **Dane tworzone:** identyfikator użytkownika, dostawca, zaszyfrowany klucz API, informacja o aktywnym dostawcy oraz metadane niezbędne do obsługi konfiguracji. Nie przechowywać kopii jawnego klucza w logach, analityce ani odpowiedzi API.
 - **Źródło prawdy i własność:** backend przechowuje konfigurację przypisaną do konta. Użytkownik kontroluje swój klucz i odpowiada za rozliczenie naliczane przez wybranego dostawcę.
 - **Wrażliwość:** klucz API jest sekretem umożliwiającym korzystanie z konta dostawcy i potencjalne naliczanie opłat. Obraz może zawierać dane osobowe lub inne informacje niezwiązane z przepisem.
-- **Walidacja i spójność:** dostawca musi należeć do obsługiwanej listy; jedno konto może mieć najwyżej jedną konfigurację na dostawcę i najwyżej jednego aktywnego dostawcę. Nie polegać wyłącznie na kształcie klucza jako dowodzie jego ważności.
+- **Walidacja i spójność:** dostawca musi należeć do obsługiwanej listy; jedno konto może mieć najwyżej jedną konfigurację dostawcy i najwyżej jednego aktywnego dostawcę. Nie polegać wyłącznie na kształcie klucza jako dowodzie jego ważności.
 - **Szyfrowanie i retencja:** klucz jest szyfrowany przed trwałym zapisem. Klucz szyfrujący powinien pochodzić z konfiguracji sekretów środowiska/hostingu, a nie z tej samej bazy danych; dokładny mechanizm zależy od wybranego backendu i hostingu. Usunięcie konfiguracji usuwa jej zaszyfrowany klucz. Oryginalny obraz jest tymczasowy.
 
 ## 7. Zależności i interfejsy
@@ -102,7 +102,7 @@ Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalo
 | Uwierzytelnianie JWT | Upstream | Projekt, `2026-10-14-registration-and-login.md` | Backend musi zweryfikować access JWT i rozpoznać właściciela konfiguracji | Odczyt i użycie klucza | Opisane; implementacja nieustalona | Nie można bezpiecznie izolować kluczy |
 | Baza danych i sekret szyfrujący | Decyzja/infrastruktura | Projekt i środowisko wdrożenia | Klucz szyfrujący nie może być przechowywany obok zaszyfrowanych danych | Trwała konfiguracja | Otwarte | Nie można bezpiecznie przechowywać poświadczeń |
 
-- **Kontrakt UI:** osobna zakładka zawiera wybór dostawcy, pole klucza, akcję sprawdzenia połączenia, zapis/usunięcie konfiguracji, wybór aktywnego dostawcy oraz czytelny status. Klucz nie jest pobierany przy ponownym otwarciu widoku.
+- **Kontrakt UI:** osobna zakładka zawiera wybór jednego dostawcy, pole klucza, akcję sprawdzenia połączenia, zapis/usunięcie konfiguracji, wybór aktywnego dostawcy oraz czytelny status. Zmiana dostawcy zastępuje poprzednią konfigurację dopiero po pomyślnym sprawdzeniu i zapisaniu nowego klucza. Klucz nie jest pobierany przy ponownym otwarciu widoku.
 - **Kontrakt backendu:** wymagane są operacje uwierzytelnione do odczytu statusu, zapisania/sprawdzenia/usunięcia konfiguracji i uruchomienia rozpoznawania. Dokładne ścieżki oraz formaty żądań i odpowiedzi zależą od wybranego podejścia do API (Django REST Framework jest rekomendowany, ale nie został jeszcze wybrany); żadne endpointy przeglądarki nie łączą się bezpośrednio z dostawcą z użyciem klucza.
 - **Kontrakt rozpoznawania:** wejściem jest pojedynczy obraz przepisu; odpowiedzią jest struktura szkicu zgodna z polami ze specyfikacji dodawania przepisu albo kontrolowany błąd. Szczegóły formatu wynikowego i mapowania należy ustalić przed implementacją.
 - **Kompatybilność:** nie znaleziono istniejącego API ani konfiguracji do migracji. Szczegóły uwierzytelnienia, endpointów i zgodności modeli należy zweryfikować względem aktualnej dokumentacji obu dostawców podczas implementacji.
@@ -111,9 +111,9 @@ Aplikacja udostępnia osobną zakładkę ustawień integracji AI, w której zalo
 
 - **Komponenty:** frontend React/TypeScript prezentuje osobną zakładkę i statusy; backend Python uwierzytelnia żądania, szyfruje i odszyfrowuje klucze, wywołuje wybranego dostawcę oraz mapuje wynik na szkic; baza danych przechowuje konfigurację per konto.
 - **Granice zaufania:** przeglądarka nie jest zaufana i nie może otrzymać zapisanego klucza. Backend jest jedynym miejscem, w którym klucz może zostać odszyfrowany. OpenRouter/OpenAI są zewnętrznymi granicami przetwarzania obrazu i treści żądania.
-- **Przepływ konfiguracji:** użytkownik wybiera dostawcę i podaje klucz; backend sprawdza poświadczenie bez wywołania generowania, jeśli dostawca udostępnia odpowiednią operację; po powodzeniu zapisuje klucz w postaci zaszyfrowanej; użytkownik jawnie aktywuje dostawcę. Nieudana zmiana nie nadpisuje działającej konfiguracji.
+- **Przepływ konfiguracji:** użytkownik wybiera dostawcę i podaje klucz; backend sprawdza poświadczenie bez wywołania generowania, jeśli dostawca udostępnia odpowiednią operację; po powodzeniu zapisuje klucz w postaci zaszyfrowanej, zastępuje poprzednią konfigurację, jeśli istniała, i dezaktywuje poprzedniego dostawcę; użytkownik jawnie aktywuje nowego dostawcę. Nieudana zmiana nie nadpisuje działającej konfiguracji.
 - **Przepływ importu:** użytkownik jawnie rozpoczyna rozpoznawanie po informacji o zewnętrznym przetwarzaniu; backend weryfikuje access JWT, konfigurację i format/rozmiar obrazu; odszyfrowuje klucz wyłącznie w pamięci procesu i wysyła żądanie do aktywnego dostawcy; mapuje odpowiedź na szkic; zwraca szkic frontendowi bez zapisywania przepisu.
-- **Decyzje:** klucze należą do użytkownika, nie są wspólne; żądania do dostawców przechodzą przez backend; konfiguracja obu dostawców może być zachowana, ale aktywny jest jeden; aplikacja wybiera kompatybilny model w pierwszej wersji. Te decyzje ograniczają ujawnienie sekretów i utrzymują zakres importu małym.
+- **Decyzje:** klucz należy do użytkownika i nie jest współdzielony; konto przechowuje konfigurację tylko jednego dostawcy naraz; żądania do dostawców przechodzą przez backend; aplikacja wybiera kompatybilny model w pierwszej wersji. Te decyzje ograniczają ujawnienie sekretów i utrzymują zakres importu małym.
 
 ## 9. Bezpieczeństwo, prywatność i nadużycia
 
@@ -180,7 +180,7 @@ To wstępna ocena zakresu i dowodów, nie porada prawna ani potwierdzenie zgodno
 ### Założenia
 
 - Aplikacja ma konta użytkowników; konfiguracja i klucze są prywatne dla każdego konta.
-- Obaj dostawcy są dostępni jako alternatywy; konto może skonfigurować oba, lecz w danym momencie używany jest jeden aktywny.
+- Obaj dostawcy są dostępni jako alternatywy, ale konto może przechowywać konfigurację tylko jednego z nich. Zapisanie poprawnie sprawdzonej konfiguracji drugiego dostawcy zastępuje poprzednią.
 - Pierwszym zastosowaniem jest import pojedynczego zdjęcia z tekstem przepisu, zgodnie z osobną specyfikacją dodawania przepisu.
 - Aplikacja dobiera domyślny model obsługujący obrazy dla aktywnego dostawcy; ręczny wybór modelu nie jest potrzebny w pierwszej wersji.
 - Użytkownik posiada konto u dostawcy, własny klucz i ponosi ewentualne opłaty dostawcy.
