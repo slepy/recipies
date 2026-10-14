@@ -29,21 +29,31 @@ Organize Django code by product domain, with separate Django apps as the codebas
 backend/
   config/                 # Django settings, root URLs, ASGI/WSGI
   accounts/               # user identity and persistence
-    models/               # User and UserManager, separately defined
-    repositories/         # user persistence contract and Django implementation
+    models/
+      contracts.py        # account identity contract
+      user.py             # user schema and invariants
+      user_manager.py     # account creation operations
+    repositories/
+      contracts.py        # user persistence port
+      django_user_repository.py
+    serializers.py        # current-user response representation
+    test_models.py
+    test_repositories.py
   authentication/         # registration, login, JWT sessions, and auth HTTP API
-    adapters/             # Django authentication and SimpleJWT implementations
-    ports/                # separate authentication, issuance, rotation, and revocation contracts
-    serializers/          # auth request validation
-    services/             # registration, authentication, and token use cases
-    views/                # HTTP endpoints and cookie handling
+    adapters/             # one adapter per Django/JWT operation
+    errors/               # one auth error per module
+    ports/                # one contract per authentication/token operation
+    serializers/          # login and registration validation
+    services/             # one use case per module
+    views/                # one HTTP endpoint per module; shared cookie/CSRF helpers
+    test_*.py              # focused module and endpoint tests
   recipes/                # recipes, ingredients, and recipe operations
   shopping_lists/         # groups, list items, and shopping-list operations
 ```
 
 Each Django app owns one product capability. `accounts` owns user identity, schema, and persistence; `authentication` owns credential checks, registration, JWT lifecycle, and the related HTTP API. Authentication depends on the user repository contract rather than importing ORM operations into use cases. Avoid circular imports. Use Django's built-in ORM and migrations rather than creating a second persistence abstraction without a demonstrated need.
 
-Keep each layer's reason to change narrow: a model defines account data and invariants; its manager creates user records; a repository owns ORM persistence; a serializer owns request validation; a view translates HTTP; a service implements one use case; an adapter integrates one framework/provider. `authentication/container.py` is the composition root. Do not add generic service registries or repositories for unrelated domains without a concrete need.
+Keep each layer's reason to change narrow: a model defines account data and invariants; its manager creates user records; a repository owns ORM persistence; a serializer owns request validation; a view translates one HTTP endpoint; a service implements one use case; an adapter integrates one framework/provider. Separate the token ports, adapters, and services for issuance, refresh rotation, and revocation. Put one production class or one test class in each module; framework-required nested configuration such as Django model `Meta` is the exception. `authentication/container.py` is the composition root. Do not add generic service registries or repositories for unrelated domains without a concrete need.
 
 The frontend communicates with Django through a Django REST Framework JSON API. The development frontend uses a same-origin Vite proxy for `/api` requests.
 
