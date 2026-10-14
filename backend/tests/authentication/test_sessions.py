@@ -54,6 +54,21 @@ class SessionApiTests(TestCase):
         self.assertEqual(missing_csrf.status_code, 403)
         self.assertEqual(untrusted_origin.status_code, 403)
 
+    def test_refresh_allows_same_origin_proxy_calls_without_origin_header(self):
+        user = User.objects.create_user("cook@example.com", "a-long-unique-password-48")
+        client = Client(enforce_csrf_checks=True)
+        client.cookies["refresh_token"] = str(RefreshToken.for_user(user))
+        csrf_token = client.get("/api/auth/csrf/").json()["csrfToken"]
+
+        response = client.post(
+            "/api/auth/refresh/",
+            HTTP_REFERER="http://testserver/",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("accessToken", response.json())
+
     def test_logout_revokes_refresh_token_and_clears_cookie(self):
         user = User.objects.create_user("cook@example.com", "a-long-unique-password-48")
         refresh = str(RefreshToken.for_user(user))
