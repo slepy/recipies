@@ -13,6 +13,14 @@ docker compose up --build
 
 Open the frontend at <http://localhost:5173>. The API is available at <http://127.0.0.1:8010> and PostgreSQL data is kept in the `postgres_data` volume.
 
+Before saving an AI provider key, generate a dedicated encryption key and put it in `.env` as `INTEGRATIONS_ENCRYPTION_KEY`:
+
+```sh
+docker compose run --rm --no-deps backend python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+```
+
+Keep this key private and back it up securely. Losing or replacing it makes previously saved provider keys unreadable.
+
 For backend checks:
 
 ```sh

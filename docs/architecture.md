@@ -50,6 +50,11 @@ backend/
     serializers/          # login and registration validation
     services/             # one use case per module
     views/                # one HTTP endpoint per module; shared cookie/CSRF helpers
+  integrations/           # user-owned external provider configurations
+    models/               # encrypted provider credentials and activation state
+    serializers/          # configuration request validation
+    services/             # credential encryption and provider connectivity checks
+    views/                # authenticated configuration API
   tests/                  # tests kept outside application modules
     accounts/
       test_models.py
@@ -61,6 +66,8 @@ backend/
 ```
 
 Each Django app owns one product capability. `accounts` owns user identity, schema, and persistence; `authentication` owns credential checks, registration, JWT lifecycle, and the related HTTP API. Authentication depends on the user repository contract rather than importing ORM operations into use cases. Avoid circular imports. Use Django's built-in ORM and migrations rather than creating a second persistence abstraction without a demonstrated need.
+
+`integrations` owns user-specific external provider configuration and credential encryption. It does not own recipe recognition or recipe persistence; those remain with the future recipe feature.
 
 Keep each layer's reason to change narrow: a model defines account data and invariants; its manager creates user records; a repository owns ORM persistence; a serializer owns request validation; a view translates one HTTP endpoint; a service implements one use case; a provider integrates one framework. Separate the token contracts, providers, and services for issuance, refresh rotation, and revocation. Put one production class or one test class in each module; framework-required nested configuration such as Django model `Meta` is the exception. `authentication/container.py` is the composition root. Do not add generic service registries or repositories for unrelated domains without a concrete need.
 
@@ -76,6 +83,13 @@ The frontend communicates with Django through a Django REST Framework JSON API. 
 - Prefer a same-origin development proxy for the React app and API to reduce CORS and cookie configuration complexity. If separate origins are used, configure credentialed refresh requests, explicit CORS origins, CSRF trusted origins, and cookie attributes together.
 
 The signing key must come from environment/secret configuration, not source control or the database. JWTs should have an explicit issuer, audience, token type, and expiration. The backend derives the user identity from a validated token and checks resource ownership on every request. Exact API routes and the JWT library remain implementation decisions.
+
+### External Provider Credentials
+
+- Store at most one AI provider configuration per user. Provider credentials are encrypted with Fernet using a dedicated `INTEGRATIONS_ENCRYPTION_KEY` supplied by the deployment environment.
+- The encryption key must be backed up securely and must not be stored in the application database or source control. The API never returns the provider credential.
+- The backend checks credentials using the provider's models-list endpoint before replacing an existing configuration. A failed check leaves the current configuration unchanged; a successful replacement deactivates the previous provider.
+- Recipe image recognition is not part of the integrations app. Provider requests for recipe content require a separate recipe feature and its privacy/retention decisions.
 
 ### Persistence and Local Development
 
@@ -94,6 +108,7 @@ frontend/src/
     lib/                  # small, genuinely shared utilities
   features/
     accounts/             # authentication screens and account-specific UI
+    integrations/         # AI provider settings and API operations
     recipes/              # recipe pages, forms, and feature components
     shopping-lists/       # list pages and feature components
 ```

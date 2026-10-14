@@ -8,6 +8,7 @@ import {
   refreshAccessToken,
   register,
 } from "./features/accounts/api"
+import IntegrationSettings from "./features/integrations/IntegrationSettings"
 
 type FormMode = "login" | "register"
 type AuthState = "loading" | "anonymous" | "authenticated"
@@ -24,6 +25,7 @@ export default function App() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showIntegrations, setShowIntegrations] = useState(false)
 
   useEffect(() => {
     let isCurrent = true
@@ -79,6 +81,7 @@ export default function App() {
       setAccount(null)
       setAuthState("anonymous")
       setMode("login")
+      setShowIntegrations(false)
     } catch {
       setError("Nie udało się zakończyć sesji. Spróbuj ponownie.")
     }
@@ -107,15 +110,31 @@ export default function App() {
         {authState === "loading" ? (
           <p className="session-message" role="status">Sprawdzam sesję...</p>
         ) : authState === "authenticated" && account && accessToken ? (
-          <div className="form-content form-content--welcome">
-            <span className="eyebrow">TWOJA KUCHNIA</span>
-            <h1>Miło Cię widzieć.</h1>
-            <p className="form-intro">Jesteś zalogowany jako {account.email}.</p>
-            {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button" type="button" onClick={signOut}>
-              Wyloguj się
-            </button>
-          </div>
+          showIntegrations ? (
+            <IntegrationSettings
+              accessToken={accessToken}
+              onBack={() => setShowIntegrations(false)}
+            />
+          ) : (
+            <div className="form-content form-content--welcome">
+              <span className="eyebrow">TWOJA KUCHNIA</span>
+              <h1>Miło Cię widzieć.</h1>
+              <p className="form-intro">Jesteś zalogowany jako {account.email}.</p>
+              {error && <p className="form-error" role="alert">{error}</p>}
+              <div className="welcome-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setShowIntegrations(true)}
+                >
+                  Integracje AI
+                </button>
+                <button className="primary-button" type="button" onClick={signOut}>
+                  Wyloguj się
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           <div className="form-content">
             <span className="eyebrow">{mode === "login" ? "WRÓĆ DO SWOJEJ KUCHNI" : "ZACZNIJ OD DOBREGO SMAKU"}</span>
