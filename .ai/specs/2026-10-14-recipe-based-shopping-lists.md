@@ -8,15 +8,27 @@
 
 ## Stan implementacji
 
-> Sprawdzono: 2026-10-15, kod z commitu `f42cc28` (`main`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
+> Sprawdzono: 2026-10-15, kod z commitu `9be27a2` (`feature/recipe-sets`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
 
 | Obszar | Stan | Szczegóły |
 | --- | --- | --- |
-| FR-001–FR-008 | ❌ Nie zaczęte | Brak aplikacji `shopping_lists` w backendzie i funkcji w frontendzie |
+| FR-001 (tworzenie zestawu) | ✅ Gotowe | `backend/recipe_sets`, `frontend/src/features/recipe-sets/RecipeSetList.tsx`; testy w `backend/tests/recipe_sets/test_set_collection.py` i `RecipeSetList.test.tsx` |
+| FR-002 (wybór przepisów, zapis) | ✅ Gotowe | Wybór w widoku zestawu i „Dodaj do zestawu” na karcie przepisu w „Moich przepisach”, bo aplikacja nie ma osobnego widoku szczegółów przepisu. Zmiany składu zapisuje przycisk „Zapisz zestaw”. Dodanie z karty jest od razu zapisem i jest idempotentne. |
+| FR-003 (lista z zestawu) | 🟡 Częściowo | Wspólny `IngredientAggregator` (ADR-0005, ADR-0006) sumuje bez skalowania porcji. Odstępstwa: pozycja z nienumeryczną ilością („szczypta”) łączy się z produktem o tej samej nazwie jako suma niepełna, a jej tekst ilości nie jest pokazywany (AC-009). Wiersz pokazuje obie miary naraz zamiast przełącznika per pozycja (AC-009a, decyzja ADR-0005). |
+| FR-004 (przeliczenie przy zapisie) | ✅ Gotowe | `RecipeSetUpdater` + `ShoppingListRefresher.apply` w jednej transakcji; test błędu zapisu bez częściowych zmian (AC-014) |
+| FR-005–FR-006 (własne pozycje, kupione) | ✅ Gotowe | Zakładka „Lista zakupów” używa `ShoppingListItems`, tego samego komponentu co lista z planu |
+| FR-007 (usuwanie) | ✅ Gotowe | Potwierdzenie `ConfirmBar`; usunięcie listy usuwa zestaw (ADR-0006) |
+| FR-008 (własność danych) | ✅ Gotowe | Testy braku/niepoprawnego JWT, dostępu między kontami i cudzych przepisów |
+| QR-001 (spójność) | ✅ Gotowe | Test integracyjny wymuszonego błędu przeliczenia |
+| QR-002 (dostępność) | 🟡 Częściowo | Zakładki z `role="tab"`, etykiety tekstowe stanu („kupione”), `aria-invalid` przy nazwie; ręczny test klawiaturą i czytnikiem nie wykonany |
+| QR-003 (logi) | ✅ Gotowe | Funkcja nie dodaje logowania danych użytkownika |
+| QR-004 (powtórzone akcje) | 🟡 Częściowo | Przyciski blokowane podczas zapisu, dodanie przepisu idempotentne; tworzenie zestawu nie ma kontroli duplikatów po stronie serwera |
 
-**Zależności gotowe:** zapisane przepisy ze składnikami (nazwa, ilość i jednostka jako tekst) z `2026-10-14-add-recipe.md` oraz uwierzytelnianie JWT.
+**Zależności gotowe:** przepisy z miarą domową i metryczną, uwierzytelnianie JWT, `shopping_lists` z planu (ADR-0005).
 
-**Następny krok:** faza 1 tej specyfikacji.
+**Znane problemy:** edycja ani usuwanie przepisu nie przeliczają list zestawów (poza zakresem). Pozycje dodane przez zapis zestawu mają oznaczenie „nowa”, tak jak po odświeżeniu listy z planu. `GET /api/shopping-lists/` bez `?plan=` zwraca też listy zestawów.
+
+**Następny krok:** decyzja produktowa w sprawie odstępstw AC-009 i AC-009a; ręczny test klawiaturą (QR-002).
 
 ## 1. Podsumowanie
 

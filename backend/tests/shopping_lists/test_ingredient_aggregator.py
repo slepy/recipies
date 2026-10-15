@@ -107,3 +107,15 @@ class IngredientAggregatorTests(SimpleTestCase):
         shown = aggregator.present(row, extra_amount=1, extra_metric=300)
 
         self.assertEqual((shown["amount"], shown["metric_amount"], shown["metric_unit"]), (3, 1.2, "kg"))
+
+    def test_whole_recipes_are_summed_as_written(self):
+        aggregator = IngredientAggregator()
+        recipes = [
+            Recipe(title="Na 4", servings=4, ingredients=[metric("mąka", 200, "g")]),
+            Recipe(title="Bez porcji", servings=None, ingredients=[metric("mąka", 100, "g")]),
+            Recipe(title="Zero porcji", servings=0, ingredients=[metric("mąka", 50, "g")]),
+        ]
+
+        items = [aggregator.present(row) for row in aggregator.aggregate_recipes(recipes)]
+
+        self.assertEqual([(item["metric_amount"], item["metric_unit"]) for item in items], [(350, "g")])

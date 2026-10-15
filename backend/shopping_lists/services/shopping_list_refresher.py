@@ -16,20 +16,26 @@ def _shown_after_refresh(item, fresh):
 
 
 class ShoppingListRefresher:
-    """Recomputes the recipe items of a list from its remembered scope; custom items are never touched."""
+    """Recomputes the recipe items of a list from its remembered scope; custom items are never touched.
 
-    def compare(self, shopping_list):
+    A list without a plan (a recipe set's list) has no scope to read, so its owner passes the
+    freshly computed rows in.
+    """
+
+    def compare(self, shopping_list, rows=None):
         """Return the freshly computed items and which keys were added, changed or removed."""
-        if shopping_list.plan_id is None:
-            return {"fresh": {}, "added": [], "changed": [], "removed": []}
+        if rows is None:
+            if shopping_list.plan_id is None:
+                return {"fresh": {}, "added": [], "changed": [], "removed": []}
+            entries = PlanEntrySelector().select(
+                shopping_list.plan,
+                shopping_list.scope_start,
+                shopping_list.scope_end,
+                shopping_list.excluded_entry_ids,
+            )
+            rows = IngredientAggregator().aggregate(entries)
 
-        entries = PlanEntrySelector().select(
-            shopping_list.plan,
-            shopping_list.scope_start,
-            shopping_list.scope_end,
-            shopping_list.excluded_entry_ids,
-        )
-        fresh = {row["key"]: row for row in IngredientAggregator().aggregate(entries)}
+        fresh = {row["key"]: row for row in rows}
         current = {
             item.key: item for item in shopping_list.items.filter(origin=ShoppingListItem.RECIPE)
         }
@@ -58,11 +64,11 @@ class ShoppingListRefresher:
             "custom_kept": shopping_list.items.filter(origin=ShoppingListItem.CUSTOM).count(),
         }
 
-    def apply(self, shopping_list):
+    def apply(self, shopping_list, rows=None):
         with transaction.atomic():
             # Lock the list so a double click on "Odśwież" cannot apply the refresh twice at once.
             locked = ShoppingList.objects.select_for_update().get(pk=shopping_list.pk)
-            difference = self.compare(locked)
+            difference = self.compare(locked, rows)
             fresh, current = difference["fresh"], difference.get("current", {})
 
             ShoppingListItem.objects.filter(

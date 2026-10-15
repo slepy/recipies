@@ -1429,3 +1429,37 @@ h1 {
   display: grid;
   gap: 4px;
 }
+
+/* Recipe sets */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs__tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 14px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tabs__tab[aria-selected="true"] {
+  border-bottom-color: var(--ink);
+  font-weight: 700;
+}
+
+.recipe-set-add {
+  margin-top: 12px;
+}
+
+.recipe-set-add__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}

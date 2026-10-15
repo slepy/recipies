@@ -32,18 +32,29 @@ class IngredientAggregator:
 
     def aggregate(self, entries):
         scaler = IngredientScaler()
+        return self.sum_ingredients(
+            ingredient for entry in entries for ingredient in scaler.scale(entry.recipe, entry.servings)
+        )
+
+    def aggregate_recipes(self, recipes):
+        """Sums whole recipes as written: a recipe set has no servings, so nothing is scaled."""
+        scaler = IngredientScaler()
+        return self.sum_ingredients(
+            ingredient for recipe in recipes for ingredient in scaler.scale(recipe, scaler.recipe_servings(recipe))
+        )
+
+    def sum_ingredients(self, ingredients):
         products = {}
-        for entry in entries:
-            for ingredient in scaler.scale(entry.recipe, entry.servings):
-                name = ingredient["name"].strip()
-                if not name:
-                    continue
-                household = (ingredient["amount"], ingredient["unit"].strip()) if ingredient["amount"] is not None else None
-                metric = self.metric(ingredient)
-                normalized_name = " ".join(name.casefold().split())
-                products.setdefault(normalized_name, {"name": name, "contributions": []})["contributions"].append(
-                    (household, metric)
-                )
+        for ingredient in ingredients:
+            name = ingredient["name"].strip()
+            if not name:
+                continue
+            household = (ingredient["amount"], ingredient["unit"].strip()) if ingredient["amount"] is not None else None
+            metric = self.metric(ingredient)
+            normalized_name = " ".join(name.casefold().split())
+            products.setdefault(normalized_name, {"name": name, "contributions": []})["contributions"].append(
+                (household, metric)
+            )
 
         rows = []
         for normalized_name, product in sorted(products.items()):

@@ -12,6 +12,9 @@ import {
 import IntegrationSettings from "./features/integrations/IntegrationSettings"
 import MealPlanList from "./features/meal-plans/MealPlanList"
 import MealPlanView from "./features/meal-plans/MealPlanView"
+import AddToRecipeSet from "./features/recipe-sets/AddToRecipeSet"
+import RecipeSetList from "./features/recipe-sets/RecipeSetList"
+import RecipeSetView from "./features/recipe-sets/RecipeSetView"
 import RecipeWorkspace from "./features/recipes/RecipeWorkspace"
 import ShoppingListView from "./features/shopping-lists/ShoppingListView"
 import { HeaderLink } from "./shared/ui/PageHeader"
@@ -54,6 +57,13 @@ function ListRoute(props: PlanScreenProps) {
       onBackToPlan={(planId) => navigate(`/plans/${planId}`)}
     />
   )
+}
+
+function RecipeSetRoute(props: PlanScreenProps) {
+  const navigate = useNavigate()
+  const setId = Number(useParams().setId)
+  if (!Number.isInteger(setId)) return <Navigate to="/sets" replace />
+  return <RecipeSetView {...props} onBack={() => navigate("/sets")} setId={setId} />
 }
 
 export default function App() {
@@ -160,6 +170,7 @@ export default function App() {
       headerLinks: [
         { label: "Przepisy", onClick: () => navigate("/recipes") },
         { label: "Plany żywieniowe", onClick: () => navigate("/plans") },
+        { label: "Zestawy przepisów", onClick: () => navigate("/sets") },
         { label: "Integracje AI", onClick: () => navigate("/settings/integrations") },
       ],
       onSignOut: signOut,
@@ -176,7 +187,11 @@ export default function App() {
               accountError={error}
               onOpenIntegrations={() => navigate("/settings/integrations")}
               onOpenPlans={() => navigate("/plans")}
+              onOpenRecipeSets={() => navigate("/sets")}
               onSignOut={signOut}
+              renderRecipeActions={(recipe) => (
+                <AddToRecipeSet accessToken={accessToken} recipeId={recipe.id} recipeTitle={recipe.title} />
+              )}
             />
           }
         />
@@ -186,6 +201,11 @@ export default function App() {
         />
         <Route path="/plans/:planId" element={<PlanRoute {...screenProps} />} />
         <Route path="/lists/:listId" element={<ListRoute {...screenProps} />} />
+        <Route
+          path="/sets"
+          element={<RecipeSetList {...screenProps} onOpenSet={(setId) => navigate(`/sets/${setId}`)} />}
+        />
+        <Route path="/sets/:setId" element={<RecipeSetRoute {...screenProps} />} />
         <Route
           path="/settings/integrations"
           element={

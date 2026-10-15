@@ -54,6 +54,22 @@ describe("recipe workspace", () => {
     })
   })
 
+  it("shows the extra recipe actions on each saved recipe", async () => {
+    vi.mocked(getRecipes).mockResolvedValue([savedRecipe])
+    render(
+      <RecipeWorkspace
+        accessToken="memory-access-token"
+        accountEmail="cook@example.com"
+        accountError=""
+        onOpenIntegrations={vi.fn()}
+        onSignOut={vi.fn()}
+        renderRecipeActions={(recipe) => <button type="button">Dodaj do zestawu: {recipe.title}</button>}
+      />,
+    )
+
+    expect(await screen.findByRole("button", { name: "Dodaj do zestawu: Zupa pomidorowa" })).toBeInTheDocument()
+  })
+
   it("separates recipe details from ingredients and saves an editable recipe", async () => {
     const user = userEvent.setup()
     vi.mocked(createRecipe).mockResolvedValue(savedRecipe)
