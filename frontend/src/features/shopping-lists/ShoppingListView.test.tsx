@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { getUnitWeights } from "../ingredients/api"
 import ShoppingListView from "./ShoppingListView"
 import {
   addCustomItem,
@@ -27,6 +28,8 @@ vi.mock("./api", () => ({
   setItemBought: vi.fn(),
 }))
 
+vi.mock("../ingredients/api", () => ({ getUnitWeights: vi.fn() }))
+
 function item(overrides: Partial<ListItem>): ListItem {
   return {
     id: 1,
@@ -37,6 +40,8 @@ function item(overrides: Partial<ListItem>): ListItem {
     amount_text: "",
     metric_amount: null,
     metric_unit: "",
+    metric_estimated: false,
+    unit_weight: null,
     partial: false,
     bought_metric_base: null,
     extra_amount: 0,
@@ -248,5 +253,73 @@ describe("shopping list view", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się odświeżyć listy.")
     expect(screen.getByText("makaron 600 g")).toBeInTheDocument()
+  })
+
+  it("marks a weight estimated from the knowledge base as approximate", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ id: 2, name: "awokado", origin: "custom", amount: 3, amount_text: "3", unit: "", metric_amount: 420, metric_unit: "g", metric_estimated: true })]),
+    )
+    renderList()
+
+    expect(await screen.findByText("awokado 3 (≈ 420 g)")).toBeInTheDocument()
+  })
+
+  it("previews the grams an increase adds and leaves the calculation to the server", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ name: "pomidorki", amount: 12, unit: "szt.", metric_amount: 240, metric_unit: "g", unit_weight: 20 })]),
+    )
+    vi.mocked(increaseItem).mockResolvedValue(item({}))
+    renderList()
+
+    await userEvent.click(await screen.findByRole("button", { name: "Zwiększ ilość: pomidorki" }))
+    await userEvent.type(screen.getByLabelText("Dodaj ilość: pomidorki"), "6")
+    expect(screen.getByText("+6 szt. ≈ +120 g")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Zwiększ" }))
+
+    expect(increaseItem).toHaveBeenCalledWith("token", 8, 1, { increase_amount: 6 })
+  })
+
+  it("shows no increase preview without a unit weight", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ name: "pomidorki", amount: 12, unit: "szt.", metric_amount: 240, metric_unit: "g" })]),
+    )
+    renderList()
+
+    await userEvent.click(await screen.findByRole("button", { name: "Zwiększ ilość: pomidorki" }))
+    await userEvent.type(screen.getByLabelText("Dodaj ilość: pomidorki"), "6")
+
+    expect(screen.queryByText(/≈/)).not.toBeInTheDocument()
+  })
+
+  it("adds a product picked from the knowledge base with only its amount", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(list([item({})]))
+    vi.mocked(getUnitWeights).mockResolvedValue({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 5, name: "awokado", unit: "", grams_per_unit: 140, source: "auto", created_at: "", updated_at: "" },
+        { id: 6, name: "Makaron", unit: "g", grams_per_unit: 1, source: "auto", created_at: "", updated_at: "" },
+      ],
+    })
+    vi.mocked(addCustomItem).mockResolvedValue(item({ id: 3, origin: "custom" }))
+    renderList()
+
+    await userEvent.type(await screen.findByRole("combobox", { name: "Wybierz z bazy składników" }), "a")
+    expect(await screen.findByRole("option", { name: "Makaron, g, 1 g (już na liście)" })).toHaveAttribute("aria-disabled", "true")
+    await userEvent.click(screen.getByRole("option", { name: "awokado, 140 g" }))
+    expect(screen.getByLabelText(/^Własna pozycja/)).toHaveValue("awokado")
+    expect(screen.getByLabelText("Ilość")).toHaveFocus()
+    await userEvent.keyboard("3")
+    expect(screen.getByText("≈ 420 g według bazy składników")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Dodaj pozycję" }))
+
+    expect(addCustomItem).toHaveBeenCalledWith("token", 8, {
+      name: "awokado",
+      amount: "3",
+      unit: "",
+      metric_amount: null,
+      metric_unit: "",
+    })
   })
 })

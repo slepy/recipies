@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from meal_plans.services import parse_amount
 from shopping_lists.models import ShoppingList, ShoppingListItem
 from shopping_lists.serializers import ShoppingListItemSerializer, ShoppingListItemWriteSerializer
+from shopping_lists.services import CustomItemMeasure
 
 
 class ItemCollectionView(APIView):
@@ -19,7 +20,7 @@ class ItemCollectionView(APIView):
         serializer = ShoppingListItemWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        item = ShoppingListItem.objects.create(
+        item = ShoppingListItem(
             shopping_list=shopping_list,
             origin=ShoppingListItem.CUSTOM,
             name=data["name"],
@@ -29,4 +30,8 @@ class ItemCollectionView(APIView):
             metric_amount=data.get("metric_amount"),
             metric_unit=data.get("metric_unit", ""),
         )
+        measure = CustomItemMeasure()
+        measure.estimate(item, request.user, metric_given=item.metric_amount is not None)
+        item.save()
+        measure.learn(item, request.user)
         return Response(ShoppingListItemSerializer(item).data, status=status.HTTP_201_CREATED)

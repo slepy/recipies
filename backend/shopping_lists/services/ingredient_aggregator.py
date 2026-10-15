@@ -1,3 +1,4 @@
+from ingredients.normalization import name_key
 from meal_plans.services import IngredientScaler
 
 MASS = {"g": 1, "kg": 1000}
@@ -40,7 +41,7 @@ class IngredientAggregator:
                     continue
                 household = (ingredient["amount"], ingredient["unit"].strip()) if ingredient["amount"] is not None else None
                 metric = self.metric(ingredient)
-                normalized_name = " ".join(name.casefold().split())
+                normalized_name = name_key(name)
                 products.setdefault(normalized_name, {"name": name, "contributions": []})["contributions"].append(
                     (household, metric)
                 )
