@@ -35,6 +35,7 @@ function renderWorkspace() {
   return render(
     <RecipeWorkspace
       accessToken="memory-access-token"
+      onEditRecipe={vi.fn()}
       onOpenIntegrations={vi.fn()}
     />,
   )
@@ -56,12 +57,30 @@ describe("recipe workspace", () => {
     render(
       <RecipeWorkspace
         accessToken="memory-access-token"
+        onEditRecipe={vi.fn()}
         onOpenIntegrations={vi.fn()}
         renderRecipeActions={(recipe) => <button type="button">Dodaj do zestawu: {recipe.title}</button>}
       />,
     )
 
     expect(await screen.findByRole("button", { name: "Dodaj do zestawu: Zupa pomidorowa" })).toBeInTheDocument()
+  })
+
+  it("opens the editor of the chosen recipe", async () => {
+    const user = userEvent.setup()
+    const onEditRecipe = vi.fn()
+    vi.mocked(getRecipes).mockResolvedValue([savedRecipe])
+    render(
+      <RecipeWorkspace
+        accessToken="memory-access-token"
+        onEditRecipe={onEditRecipe}
+        onOpenIntegrations={vi.fn()}
+      />,
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Edytuj przepis: Zupa pomidorowa" }))
+
+    expect(onEditRecipe).toHaveBeenCalledWith(12)
   })
 
   it("separates recipe details from ingredients and saves an editable recipe", async () => {
@@ -431,6 +450,7 @@ describe("recipe workspace", () => {
     render(
       <RecipeWorkspace
         accessToken="memory-access-token"
+        onEditRecipe={vi.fn()}
         onOpenIntegrations={onOpenIntegrations}
       />,
     )

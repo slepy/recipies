@@ -1,26 +1,22 @@
-import { FormEvent, ReactNode, useEffect, useState } from "react"
+import { ReactNode, useEffect, useState } from "react"
 
 import { getProviderConfiguration } from "../integrations/api"
 import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeDraft, RecipeInput } from "./api"
-import DishPhotoPicker from "./DishPhotoPicker"
-import { validateImage } from "./imageRules"
+import RecipeForm, { RecipeFormValues } from "./RecipeForm"
 import RecognitionImagePicker from "./RecognitionImagePicker"
 
 type RecipeWorkspaceProps = {
   accessToken: string
   onOpenIntegrations: () => void
+  onEditRecipe: (recipeId: number) => void
   // Extra actions shown on each recipe, such as "Dodaj do zestawu" from the recipe-sets feature.
   renderRecipeActions?: (recipe: Recipe) => ReactNode
 }
 
-// The form keeps the metric amount as text while it is being typed.
-type IngredientDraft = Omit<Ingredient, "metric_amount"> & { metric_amount: string }
-
-const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "", metric_amount: "", metric_unit: "" }
-const metricUnits = ["g", "kg", "ml", "l"] as const
-
-function toIngredientDraft(ingredient: Ingredient): IngredientDraft {
-  return { ...ingredient, metric_amount: ingredient.metric_amount === null ? "" : String(ingredient.metric_amount) }
+// What a recognised image puts into the form; a new draft remounts the form with these values.
+type FormDraft = {
+  values: RecipeFormValues
+  photo: File | null
 }
 
 function dataUrlToFile(dataUrl: string, name: string) {
@@ -30,37 +26,27 @@ function dataUrlToFile(dataUrl: string, name: string) {
   return new File([bytes], name, { type })
 }
 
-function optionalNumber(value: string) {
-  return value === "" ? null : Number(value)
-}
-
 function ingredientSummary(ingredient: Ingredient) {
   const metric = ingredient.metric_amount ? `(${ingredient.metric_amount} ${ingredient.metric_unit})` : ""
   return [ingredient.amount, ingredient.unit, ingredient.name, metric].filter(Boolean).join(" ")
 }
 
-export default function RecipeWorkspace({ accessToken, onOpenIntegrations, renderRecipeActions }: RecipeWorkspaceProps) {
+export default function RecipeWorkspace({
+  accessToken,
+  onOpenIntegrations,
+  onEditRecipe,
+  renderRecipeActions,
+}: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isProviderConfigured, setIsProviderConfigured] = useState(false)
   const [isProviderActive, setIsProviderActive] = useState(false)
-  const [isDishPhotoProposed, setIsDishPhotoProposed] = useState(false)
   const [isLoadingProviderConfiguration, setIsLoadingProviderConfiguration] = useState(true)
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [servings, setServings] = useState("")
-  const [prepTime, setPrepTime] = useState("")
-  const [cookTime, setCookTime] = useState("")
-  const [ingredients, setIngredients] = useState<IngredientDraft[]>([{ ...emptyIngredient }])
-  const [steps, setSteps] = useState<string[]>([""])
-  const [dishPhoto, setDishPhoto] = useState<File | null>(null)
-  const [dishPhotoPreview, setDishPhotoPreview] = useState("")
-  const [photoError, setPhotoError] = useState("")
+  const [formDraft, setFormDraft] = useState<FormDraft | null>(null)
+  const [formKey, setFormKey] = useState(0)
   const [recipePhotoUrls, setRecipePhotoUrls] = useState<Record<number, string>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [hasLoadedRecipes, setHasLoadedRecipes] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState("")
   const [loadError, setLoadError] = useState("")
   const [notice, setNotice] = useState("")
 
@@ -110,17 +96,6 @@ export default function RecipeWorkspace({ accessToken, onOpenIntegrations, rende
   }, [accessToken])
 
   useEffect(() => {
-    if (!dishPhoto) {
-      setDishPhotoPreview("")
-      return
-    }
-
-    const previewUrl = URL.createObjectURL(dishPhoto)
-    setDishPhotoPreview(previewUrl)
-    return () => URL.revokeObjectURL(previewUrl)
-  }, [dishPhoto])
-
-  useEffect(() => {
     let isCurrent = true
     const objectUrls: string[] = []
 
@@ -149,96 +124,27 @@ export default function RecipeWorkspace({ accessToken, onOpenIntegrations, rende
     }
   }, [accessToken, recipes])
 
-  function updateIngredient(index: number, field: keyof IngredientDraft, value: string) {
-    setIngredients((current) =>
-      current.map((ingredient, ingredientIndex) =>
-        ingredientIndex === index ? { ...ingredient, [field]: value } : ingredient,
-      ),
-    )
-  }
-
-  function selectDishPhoto(file: File | undefined) {
-    setPhotoError("")
-    if (!file) {
-      setDishPhoto(null)
-      return
-    }
-    const message = validateImage(file, "zdjęcie")
-    setPhotoError(message)
-    setIsDishPhotoProposed(false)
-    setDishPhoto(message ? null : file)
-  }
-
   function applyDraft(draft: RecipeDraft) {
-    setTitle(draft.title)
-    setDescription(draft.description)
-    setServings(draft.servings === null ? "" : String(draft.servings))
-    setPrepTime(draft.prep_time_minutes === null ? "" : String(draft.prep_time_minutes))
-    setCookTime(draft.cook_time_minutes === null ? "" : String(draft.cook_time_minutes))
-    setIngredients(draft.ingredients.length > 0 ? draft.ingredients.map(toIngredientDraft) : [{ ...emptyIngredient }])
-    setSteps(draft.steps.length > 0 ? draft.steps : [""])
-    setPhotoError("")
-    setDishPhoto(draft.dish_photo ? dataUrlToFile(draft.dish_photo, "propozycja-ai.jpg") : null)
-    setIsDishPhotoProposed(Boolean(draft.dish_photo))
+    const { dish_photo: dishPhoto, ...values } = draft
+    setFormDraft({ values, photo: dishPhoto ? dataUrlToFile(dishPhoto, "propozycja-ai.jpg") : null })
+    setFormKey((current) => current + 1)
     setNotice("Szkic z rozpoznania. Sprawdź i popraw dane, zanim zapiszesz przepis.")
   }
 
   function startNewRecipe() {
     setNotice("")
-    setError("")
-    setPhotoError("")
+    setFormDraft(null)
+    setFormKey((current) => current + 1)
     setIsCreating(true)
   }
 
-  async function submitRecipe(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError("")
+  async function saveRecipe(recipeInput: RecipeInput) {
     setNotice("")
-    setIsSaving(true)
-
-    const recipeInput: RecipeInput = {
-      title: title.trim(),
-      description: description.trim(),
-      servings: optionalNumber(servings),
-      prep_time_minutes: optionalNumber(prepTime),
-      cook_time_minutes: optionalNumber(cookTime),
-      ingredients: ingredients
-        .map((ingredient) => {
-          const metricAmount = optionalNumber(ingredient.metric_amount.trim().replace(",", "."))
-          // a metric measure needs both the number and the unit to be summed later
-          const hasMetric = metricAmount !== null && Number.isFinite(metricAmount) && Boolean(ingredient.metric_unit)
-          return {
-            name: ingredient.name.trim(),
-            amount: ingredient.amount.trim(),
-            unit: ingredient.unit.trim(),
-            metric_amount: hasMetric ? metricAmount : null,
-            metric_unit: hasMetric ? ingredient.metric_unit : "",
-          } satisfies Ingredient
-        })
-        .filter((ingredient) => ingredient.name || ingredient.amount || ingredient.unit || ingredient.metric_amount),
-      steps: steps.map((step) => step.trim()).filter(Boolean),
-    }
-    if (dishPhoto) recipeInput.photo = dishPhoto
-
-    try {
-      const recipe = await createRecipe(accessToken, recipeInput)
-      setRecipes((current) => [recipe, ...current])
-      setTitle("")
-      setDescription("")
-      setServings("")
-      setPrepTime("")
-      setCookTime("")
-      setIngredients([{ ...emptyIngredient }])
-      setSteps([""])
-      setDishPhoto(null)
-      setIsDishPhotoProposed(false)
-      setNotice("Przepis został zapisany w Twojej kolekcji.")
-      setIsCreating(false)
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Nie udało się zapisać przepisu.")
-    } finally {
-      setIsSaving(false)
-    }
+    const recipe = await createRecipe(accessToken, recipeInput)
+    setRecipes((current) => [recipe, ...current])
+    setFormDraft(null)
+    setNotice("Przepis został zapisany w Twojej kolekcji.")
+    setIsCreating(false)
   }
 
   return (
@@ -282,206 +188,14 @@ export default function RecipeWorkspace({ accessToken, onOpenIntegrations, rende
           </section>
           {notice && <p className="integration-status" role="status">{notice}</p>}
 
-          <form className="recipe-form" onSubmit={submitRecipe}>
-            <fieldset className="recipe-section">
-              <legend>Część opisowa</legend>
-              <label className="recipe-field" htmlFor="recipe-title">
-                <span>Tytuł <span aria-hidden="true">*</span></span>
-                <input
-                  autoComplete="off"
-                  id="recipe-title"
-                  maxLength={200}
-                  onChange={(event) => setTitle(event.target.value)}
-                  required
-                  value={title}
-                />
-              </label>
-              <label className="recipe-field" htmlFor="recipe-description">
-                <span>Opis lub notatka</span>
-                <textarea
-                  id="recipe-description"
-                  onChange={(event) => setDescription(event.target.value)}
-                  rows={3}
-                  value={description}
-                />
-              </label>
-              <DishPhotoPicker
-                error={photoError}
-                file={dishPhoto}
-                isProposed={isDishPhotoProposed}
-                onRemove={() => {
-                  setDishPhoto(null)
-                  setIsDishPhotoProposed(false)
-                }}
-                onSelect={selectDishPhoto}
-                previewUrl={dishPhotoPreview}
-              />
-              <div className="recipe-number-grid">
-                <label className="recipe-field" htmlFor="recipe-servings">
-                  <span>Porcje</span>
-                  <input
-                    id="recipe-servings"
-                    min="1"
-                    onChange={(event) => setServings(event.target.value)}
-                    type="number"
-                    value={servings}
-                  />
-                </label>
-                <label className="recipe-field" htmlFor="recipe-prep-time">
-                  <span>Przygotowanie (min)</span>
-                  <input
-                    id="recipe-prep-time"
-                    min="0"
-                    onChange={(event) => setPrepTime(event.target.value)}
-                    type="number"
-                    value={prepTime}
-                  />
-                </label>
-                <label className="recipe-field" htmlFor="recipe-cook-time">
-                  <span>Gotowanie (min)</span>
-                  <input
-                    id="recipe-cook-time"
-                    min="0"
-                    onChange={(event) => setCookTime(event.target.value)}
-                    type="number"
-                    value={cookTime}
-                  />
-                </label>
-              </div>
-              <div className="recipe-list-editor">
-                <div className="recipe-list-heading">
-                  <span>Kroki przygotowania</span>
-                  <button
-                    className="text-button"
-                    onClick={() => setSteps((current) => [...current, ""])}
-                    type="button"
-                  >
-                    + Dodaj krok
-                  </button>
-                </div>
-                <ol className="recipe-step-fields">
-                  {steps.map((step, index) => (
-                    <li key={index}>
-                      <label className="recipe-field" htmlFor={`recipe-step-${index}`}>
-                        <span>Krok {index + 1}</span>
-                        <textarea
-                          id={`recipe-step-${index}`}
-                          onChange={(event) =>
-                            setSteps((current) =>
-                              current.map((currentStep, stepIndex) =>
-                                stepIndex === index ? event.target.value : currentStep,
-                              ),
-                            )
-                          }
-                          rows={2}
-                          value={step}
-                        />
-                      </label>
-                      {steps.length > 1 && (
-                        <button
-                          aria-label={`Usuń krok ${index + 1}`}
-                          className="remove-row"
-                          onClick={() => setSteps((current) => current.filter((_, stepIndex) => stepIndex !== index))}
-                          type="button"
-                        >
-                          Usuń
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </fieldset>
-
-            <fieldset className="recipe-section">
-              <legend>Składniki</legend>
-              <div className="recipe-list-editor">
-                <div className="recipe-list-heading">
-                  <span>Pozycje na liście</span>
-                  <button
-                    className="text-button"
-                    onClick={() => setIngredients((current) => [...current, { ...emptyIngredient }])}
-                    type="button"
-                  >
-                    + Dodaj składnik
-                  </button>
-                </div>
-                <div className="recipe-ingredient-fields">
-                  {ingredients.map((ingredient, index) => (
-                    <div className="recipe-ingredient-row" key={index}>
-                      <label className="recipe-field" htmlFor={`ingredient-name-${index}`}>
-                        <span>Składnik {index + 1}</span>
-                        <input
-                          id={`ingredient-name-${index}`}
-                          maxLength={200}
-                          onChange={(event) => updateIngredient(index, "name", event.target.value)}
-                          value={ingredient.name}
-                        />
-                      </label>
-                      <label className="recipe-field" htmlFor={`ingredient-amount-${index}`}>
-                        <span>Ilość</span>
-                        <input
-                          id={`ingredient-amount-${index}`}
-                          maxLength={100}
-                          onChange={(event) => updateIngredient(index, "amount", event.target.value)}
-                          value={ingredient.amount}
-                        />
-                      </label>
-                      <label className="recipe-field" htmlFor={`ingredient-unit-${index}`}>
-                        <span>Jednostka</span>
-                        <input
-                          id={`ingredient-unit-${index}`}
-                          maxLength={100}
-                          onChange={(event) => updateIngredient(index, "unit", event.target.value)}
-                          value={ingredient.unit}
-                        />
-                      </label>
-                      <label className="recipe-field" htmlFor={`ingredient-metric-amount-${index}`}>
-                        <span>Waga lub objętość</span>
-                        <input
-                          id={`ingredient-metric-amount-${index}`}
-                          inputMode="decimal"
-                          maxLength={12}
-                          onChange={(event) => updateIngredient(index, "metric_amount", event.target.value)}
-                          value={ingredient.metric_amount}
-                        />
-                      </label>
-                      <label className="recipe-field" htmlFor={`ingredient-metric-unit-${index}`}>
-                        <span>Miara</span>
-                        <select
-                          id={`ingredient-metric-unit-${index}`}
-                          onChange={(event) => updateIngredient(index, "metric_unit", event.target.value)}
-                          value={ingredient.metric_unit}
-                        >
-                          <option value="">—</option>
-                          {metricUnits.map((unit) => (
-                            <option key={unit} value={unit}>{unit}</option>
-                          ))}
-                        </select>
-                      </label>
-                      {ingredients.length > 1 && (
-                        <button
-                          aria-label={`Usuń składnik ${index + 1}`}
-                          className="remove-row"
-                          onClick={() =>
-                            setIngredients((current) => current.filter((_, ingredientIndex) => ingredientIndex !== index))
-                          }
-                          type="button"
-                        >
-                          Usuń
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </fieldset>
-
-            {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button recipe-submit" disabled={isSaving} type="submit">
-              {isSaving ? "Zapisuję..." : "Zapisz przepis"}
-            </button>
-          </form>
+          <RecipeForm
+            initialPhoto={formDraft?.photo}
+            initialValues={formDraft?.values}
+            isInitialPhotoProposed={Boolean(formDraft?.photo)}
+            key={formKey}
+            onSubmit={saveRecipe}
+            submitLabel="Zapisz przepis"
+          />
         </section>
       </div>
       ) : (
@@ -552,7 +266,17 @@ export default function RecipeWorkspace({ accessToken, onOpenIntegrations, rende
                       )}
                     </details>
                   )}
-                  {renderRecipeActions?.(recipe)}
+                  <div className="recipe-entry-actions">
+                    <button
+                      aria-label={`Edytuj przepis: ${recipe.title}`}
+                      className="text-button"
+                      onClick={() => onEditRecipe(recipe.id)}
+                      type="button"
+                    >
+                      Edytuj
+                    </button>
+                    {renderRecipeActions?.(recipe)}
+                  </div>
                 </article>
               ))}
             </div>

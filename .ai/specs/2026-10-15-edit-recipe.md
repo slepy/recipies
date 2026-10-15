@@ -1,6 +1,6 @@
 # Specyfikacja: Edycja przepisu
 
-> Status: Approved
+> Status: Implemented
 > Owner: Właściciel projektu
 > Created: 2026-10-15
 > Updated: 2026-10-15
@@ -8,20 +8,25 @@
 
 ## Stan implementacji
 
-> Sprawdzono: 2026-10-15, kod z gałęzi `main` @ `964ea21`. Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
+> Sprawdzono: 2026-10-15, kod z gałęzi `feature/edit-recipe` (baza `main` @ `964ea21`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
 
 | Obszar | Stan | Szczegóły |
 | --- | --- | --- |
-| FR-001 pobranie jednego przepisu | ❌ Nie rozpoczęto | Istnieje tylko `GET/POST /api/recipes/` |
-| FR-002 zapis zmian | ❌ Nie rozpoczęto | Brak `PATCH` |
-| FR-003 zdjęcie przy edycji | ❌ Nie rozpoczęto | |
-| FR-004 wejście w edycję | ❌ Nie rozpoczęto | Karta przepisu nie ma akcji „Edytuj” |
-| FR-005 formularz edycji | ❌ Nie rozpoczęto | Formularz w `RecipeWorkspace` umie tylko tworzyć |
-| FR-006 wpływ na plany i listy | ❌ Nie rozpoczęto | |
+| FR-001 pobranie jednego przepisu | ✅ Zrobione | `RecipeDetailView.get`, `GET /api/recipes/<id>/`; cudzy lub brakujący przepis daje 404 |
+| FR-002 zapis zmian | ✅ Zrobione | `RecipeDetailView.patch` (`partial=True`), JSON lub multipart przez wspólne `read_recipe_payload`; uczenie wag jednostek |
+| FR-003 zdjęcie przy edycji | ✅ Zrobione | Plik `photo` podmienia, `remove_photo: true` usuwa; stary plik usuwany po udanym zapisie |
+| FR-004 wejście w edycję | ✅ Zrobione | Przycisk „Edytuj” na karcie, trasa `/recipes/:recipeId/edit` (`RecipeEditRoute`), nieliczbowy id → `/recipes` |
+| FR-005 formularz edycji | ✅ Zrobione | `RecipeEditor` + wspólny `RecipeForm` (także dla dodawania); bez sekcji AI |
+| FR-006 wpływ na plany i listy | ✅ Zrobione | Komunikat nad formularzem edycji |
+| Fazy (sekcja 11) | 1–4 zrobione | Pełne zestawy: backend 226 testów, frontend 120 testów, `npm run build` bez błędów |
 
-**Znane problemy:** brak.
+**Znane problemy:**
 
-**Następny krok:** faza 1 (backend: widok szczegółu przepisu).
+- Jeśli zapisane zdjęcie nie da się pobrać, formularz go nie pokazuje i nie można go usunąć w tej edycji; zapis je zostawia.
+- Wyjście z formularza dodawania („← Moje przepisy”) gubi wpisane dane, bo formularz jest teraz osobnym komponentem. Wcześniej stan zostawał w `RecipeWorkspace`.
+- Ręczny test w przeglądarce i test dostępności nie były wykonane.
+
+**Następny krok:** przegląd PR.
 
 ## 1. Podsumowanie
 
@@ -68,32 +73,32 @@ Użytkownik może zmienić zapisany przepis: wszystkie pola z formularza dodawan
 > Oznaczenia kryteriów: ✅ zrobione, 🟡 zrobione częściowo, bez znaku – jeszcze nie zrobione.
 
 - **FR-001:** System zwraca jeden przepis jego właścicielowi.
-  - **AC-001:** `GET /api/recipes/<id>/` z ważnym access JWT właściciela zwraca 200 i ten sam kształt danych co element listy (`id`, pola przepisu, `photo_url`, `created_at`).
-  - **AC-002:** Dla przepisu innego użytkownika albo nieistniejącego identyfikatora odpowiedź to 404. Bez ważnego access JWT odpowiedź to 401.
+  - **AC-001:** ✅ `GET /api/recipes/<id>/` z ważnym access JWT właściciela zwraca 200 i ten sam kształt danych co element listy (`id`, pola przepisu, `photo_url`, `created_at`).
+  - **AC-002:** ✅ Dla przepisu innego użytkownika albo nieistniejącego identyfikatora odpowiedź to 404. Bez ważnego access JWT odpowiedź to 401.
 - **FR-002:** System zapisuje zmiany przepisu.
-  - **AC-003:** `PATCH /api/recipes/<id>/` przyjmuje JSON albo `multipart/form-data` (dane przepisu w polu `recipe` jako JSON, plik w polu `photo`), tak jak `POST`. Zwraca 200 i zaktualizowany przepis.
-  - **AC-004:** Obowiązują te same reguły walidacji co przy tworzeniu (tytuł wymagany i niepusty, miara metryczna z liczbą i jednostką razem, dozwolone jednostki). Przy błędzie odpowiedź to 400, a przepis i zdjęcie pozostają bez zmian.
-  - **AC-005:** Przesłane `ingredients` i `steps` zastępują poprzednie listy w całości.
-  - **AC-006:** `PATCH` cudzego lub nieistniejącego przepisu daje 404 i niczego nie zmienia. Pole właściciela nie jest przyjmowane z żądania.
-  - **AC-007:** Po zapisie zmian system uczy się wag jednostek ze składników (`UnitWeightLearner`), tak jak po utworzeniu przepisu. Nie zmienia to istniejących wpisów bazy składników.
+  - **AC-003:** ✅ `PATCH /api/recipes/<id>/` przyjmuje JSON albo `multipart/form-data` (dane przepisu w polu `recipe` jako JSON, plik w polu `photo`), tak jak `POST`. Zwraca 200 i zaktualizowany przepis.
+  - **AC-004:** ✅ Obowiązują te same reguły walidacji co przy tworzeniu (tytuł wymagany i niepusty, miara metryczna z liczbą i jednostką razem, dozwolone jednostki). Przy błędzie odpowiedź to 400, a przepis i zdjęcie pozostają bez zmian.
+  - **AC-005:** ✅ Przesłane `ingredients` i `steps` zastępują poprzednie listy w całości.
+  - **AC-006:** ✅ `PATCH` cudzego lub nieistniejącego przepisu daje 404 i niczego nie zmienia. Pole właściciela nie jest przyjmowane z żądania.
+  - **AC-007:** ✅ Po zapisie zmian system uczy się wag jednostek ze składników (`UnitWeightLearner`), tak jak po utworzeniu przepisu. Nie zmienia to istniejących wpisów bazy składników.
 - **FR-003:** System pozwala zostawić, podmienić albo usunąć zdjęcie potrawy.
-  - **AC-008:** Żądanie bez pliku `photo` i bez `remove_photo` zostawia obecne zdjęcie.
-  - **AC-009:** Żądanie z plikiem `photo` zastępuje zdjęcie. Plik przechodzi te same kontrole co przy tworzeniu (format, 5 MB, czytelność, usunięcie EXIF).
-  - **AC-010:** Żądanie z `remove_photo: true` usuwa zdjęcie, a `photo_url` w odpowiedzi to `null`. Wysłanie jednocześnie `photo` i `remove_photo: true` daje 400.
-  - **AC-011:** Po udanej podmianie albo usunięciu poprzedni plik zostaje usunięty z magazynu plików. Przy nieudanym zapisie poprzedni plik zostaje.
+  - **AC-008:** ✅ Żądanie bez pliku `photo` i bez `remove_photo` zostawia obecne zdjęcie.
+  - **AC-009:** ✅ Żądanie z plikiem `photo` zastępuje zdjęcie. Plik przechodzi te same kontrole co przy tworzeniu (format, 5 MB, czytelność, usunięcie EXIF).
+  - **AC-010:** ✅ Żądanie z `remove_photo: true` usuwa zdjęcie, a `photo_url` w odpowiedzi to `null`. Wysłanie jednocześnie `photo` i `remove_photo: true` daje 400.
+  - **AC-011:** ✅ Po udanej podmianie albo usunięciu poprzedni plik zostaje usunięty z magazynu plików. Przy nieudanym zapisie poprzedni plik zostaje.
 - **FR-004:** Użytkownik może wejść w edycję z listy przepisów.
-  - **AC-012:** Każda karta na liście „Moje przepisy” ma przycisk „Edytuj” z dostępną nazwą wskazującą przepis. Przycisk otwiera `/recipes/<id>/edit`.
-  - **AC-013:** Wejście bezpośrednio na `/recipes/<id>/edit` (link, przeładowanie) ładuje formularz. Nieliczbowy identyfikator przekierowuje na `/recipes`. Przepis nieistniejący lub cudzy pokazuje komunikat „Nie znaleziono przepisu.” i drogę powrotu do listy.
-  - **AC-014:** Element nawigacji „Przepisy” jest aktywny na stronie edycji.
+  - **AC-012:** ✅ Każda karta na liście „Moje przepisy” ma przycisk „Edytuj” z dostępną nazwą wskazującą przepis. Przycisk otwiera `/recipes/<id>/edit`.
+  - **AC-013:** ✅ Wejście bezpośrednio na `/recipes/<id>/edit` (link, przeładowanie) ładuje formularz. Nieliczbowy identyfikator przekierowuje na `/recipes`. Przepis nieistniejący lub cudzy pokazuje komunikat „Nie znaleziono przepisu.” i drogę powrotu do listy.
+  - **AC-014:** ✅ Element nawigacji „Przepisy” jest aktywny na stronie edycji.
 - **FR-005:** Formularz edycji pokazuje aktualne dane i zapisuje zmiany.
-  - **AC-015:** Formularz ma nagłówek „Edytuj przepis”, te same pola i układ co dodawanie, i jest wypełniony danymi przepisu. Pusty przepis bez kroków lub składników pokazuje jeden pusty wiersz, jak przy dodawaniu.
-  - **AC-016:** Jeśli przepis ma zdjęcie, formularz pokazuje jego podgląd z akcjami „Zmień zdjęcie” i „Usuń zdjęcie”.
-  - **AC-017:** „Zapisz zmiany” wysyła `PATCH`. Podczas zapisu przycisk jest zablokowany. Po sukcesie użytkownik wraca na `/recipes`, gdzie widzi zmieniony przepis.
-  - **AC-018:** Błąd zapisu pokazuje komunikat, a wpisane dane zostają w formularzu.
-  - **AC-019:** „Anuluj” wraca na `/recipes` bez zapisu.
-  - **AC-020:** Formularz edycji nie pokazuje sekcji rozpoznawania przepisu przez AI.
+  - **AC-015:** ✅ Formularz ma nagłówek „Edytuj przepis”, te same pola i układ co dodawanie, i jest wypełniony danymi przepisu. Pusty przepis bez kroków lub składników pokazuje jeden pusty wiersz, jak przy dodawaniu.
+  - **AC-016:** ✅ Jeśli przepis ma zdjęcie, formularz pokazuje jego podgląd z akcjami „Zmień zdjęcie” i „Usuń zdjęcie”.
+  - **AC-017:** ✅ „Zapisz zmiany” wysyła `PATCH`. Podczas zapisu przycisk jest zablokowany. Po sukcesie użytkownik wraca na `/recipes`, gdzie widzi zmieniony przepis.
+  - **AC-018:** ✅ Błąd zapisu pokazuje komunikat, a wpisane dane zostają w formularzu.
+  - **AC-019:** ✅ „Anuluj” wraca na `/recipes` bez zapisu.
+  - **AC-020:** ✅ Formularz edycji nie pokazuje sekcji rozpoznawania przepisu przez AI.
 - **FR-006:** Użytkownik wie, jak zmiana wpływa na inne części aplikacji.
-  - **AC-021:** Formularz edycji informuje: „Zmiany zobaczysz od razu w planach, w których jest ten przepis. Gotowe listy zakupów się nie zmienią.”
+  - **AC-021:** ✅ Formularz edycji informuje: „Zmiany zobaczysz od razu w planach, w których jest ten przepis. Gotowe listy zakupów się nie zmienią.”
 
 ### Wymagania jakościowe
 
@@ -174,11 +179,11 @@ To wstępna ocena zakresu i dowodów, nie porada prawna ani potwierdzenie zgodno
 
 | ID | Metoda | Miejsce | Status |
 | --- | --- | --- | --- |
-| AC-001–AC-011, QR-001, QR-002 | Testy automatyczne API | `backend/tests/recipes/test_recipe_detail.py` | Planowane |
-| AC-012 | Test komponentu | `frontend/src/features/recipes/RecipeWorkspace.test.tsx` | Planowane |
-| AC-013, AC-015–AC-021 | Test komponentu | `frontend/src/features/recipes/RecipeEditor.test.tsx` | Planowane |
-| AC-013 (przekierowanie), AC-014 | Przegląd kodu trasy | `frontend/src/app/AuthenticatedApp.tsx` | Planowane |
-| QR-004 | Przegląd kodu | `RecipeForm.tsx` | Planowane |
+| AC-001–AC-011, QR-001, QR-002 | Testy automatyczne API | `backend/tests/recipes/test_recipe_detail.py` | Przechodzi |
+| AC-012 | Test komponentu | `frontend/src/features/recipes/RecipeWorkspace.test.tsx` | Przechodzi |
+| AC-013, AC-015–AC-021 | Test komponentu | `frontend/src/features/recipes/RecipeEditor.test.tsx` | Przechodzi |
+| AC-013 (przekierowanie), AC-014 | Przegląd kodu trasy | `frontend/src/app/AuthenticatedApp.tsx` | Przechodzi |
+| QR-004 | Przegląd kodu | `RecipeForm.tsx` | Przechodzi |
 
 ## 13. Ryzyka, założenia i decyzje
 

@@ -15,15 +15,17 @@ export type RecipeInput = {
   ingredients: Ingredient[]
   steps: string[]
   photo?: File
+  // Only for an update: drops the saved photo when no new one is sent.
+  remove_photo?: boolean
 }
 
-export type Recipe = Omit<RecipeInput, "photo"> & {
+export type Recipe = Omit<RecipeInput, "photo" | "remove_photo"> & {
   id: number
   photo_url: string | null
   created_at: string
 }
 
-export type RecipeDraft = Omit<RecipeInput, "photo"> & {
+export type RecipeDraft = Omit<RecipeInput, "photo" | "remove_photo"> & {
   dish_photo: string | null
 }
 
@@ -54,8 +56,9 @@ async function request(
   accessToken: string,
   options: RequestInit = {},
   fallbackMessage = "Nie udało się zapisać przepisu.",
+  path = recipesPath,
 ) {
-  const response = await fetch(recipesPath, {
+  const response = await fetch(path, {
     ...options,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -69,20 +72,38 @@ export async function getRecipes(accessToken: string) {
   return (await request(accessToken, {}, "")) as Recipe[]
 }
 
-export async function createRecipe(accessToken: string, recipe: RecipeInput) {
+// Without a photo the recipe goes as JSON; with one, as a form with the details as JSON text and the file.
+function recipeBody(recipe: RecipeInput): RequestInit {
   const { photo, ...recipeDetails } = recipe
   if (!photo) {
-    return (await request(accessToken, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(recipeDetails),
-    })) as Recipe
+    return { headers: { "Content-Type": "application/json" }, body: JSON.stringify(recipeDetails) }
   }
 
   const formData = new FormData()
   formData.append("recipe", JSON.stringify(recipeDetails))
   formData.append("photo", photo)
-  return (await request(accessToken, { method: "POST", body: formData })) as Recipe
+  return { body: formData }
+}
+
+export async function createRecipe(accessToken: string, recipe: RecipeInput) {
+  return (await request(accessToken, { method: "POST", ...recipeBody(recipe) })) as Recipe
+}
+
+export async function getRecipe(accessToken: string, recipeId: number) {
+  const response = await fetch(`${recipesPath}${recipeId}/`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (response.status === 404) throw new ApiError("Nie znaleziono przepisu.", "not_found")
+  return (await readResponse(response, "Nie udało się pobrać przepisu.")) as Recipe
+}
+
+export async function updateRecipe(accessToken: string, recipeId: number, recipe: RecipeInput) {
+  return (await request(
+    accessToken,
+    { method: "PATCH", ...recipeBody(recipe) },
+    "Nie udało się zapisać zmian.",
+    `${recipesPath}${recipeId}/`,
+  )) as Recipe
 }
 
 export async function getRecipePhoto(accessToken: string, photoUrl: string) {

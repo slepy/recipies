@@ -54,7 +54,7 @@ export default function DishPhotoPicker({ file, previewUrl, isProposed, error, o
         <div className="photo-picker__preview" onDragLeave={() => setIsDragging(false)} onDragOver={dragOver} onDrop={drop}>
           <img src={previewUrl} alt="Podgląd zdjęcia gotowego dania" />
           <div className="photo-picker__details">
-            <strong>{isProposed ? "Zdjęcie z rozpoznanego obrazu" : file?.name}</strong>
+            <strong>{isProposed ? "Zdjęcie z rozpoznanego obrazu" : (file?.name ?? "Zapisane zdjęcie dania")}</strong>
             {isProposed && <small>Propozycja AI: wycięte z obrazu zdjęcie dania. Usuń je albo zastąp własnym.</small>}
             <div className="photo-picker__actions">
               <label className="secondary-button" htmlFor={inputId}>Zmień zdjęcie</label>

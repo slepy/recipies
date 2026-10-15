@@ -1174,6 +1174,13 @@ small.form-error {
   font-size: 11px;
 }
 
+.recipe-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 16px;
+}
+
 .recipe-entry-details {
   border-top: 1px solid var(--line);
   padding-top: 10px;
@@ -1533,8 +1540,14 @@ small.form-error {
   min-height: var(--control-height);
 }
 
+.recipe-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
 .recipe-submit {
-  justify-self: start;
   min-width: 200px;
 }
 
