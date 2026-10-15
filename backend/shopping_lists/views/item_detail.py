@@ -59,7 +59,7 @@ class ItemDetailView(APIView):
         item = self.get_item(request, list_id, item_id)
         if any(key in request.data for key in ("increase_amount", "increase_metric_amount", "reset_increase")):
             return self.increase(request, item)
-        serializer = ShoppingListItemWriteSerializer(data=request.data, partial=True)
+        serializer = ShoppingListItemWriteSerializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
