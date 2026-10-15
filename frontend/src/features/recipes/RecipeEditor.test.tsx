@@ -86,6 +86,25 @@ describe("recipe editor", () => {
     })
   })
 
+  it("edits ingredients saved without every field", async () => {
+    const user = userEvent.setup()
+    // Older recipes have no metric measure, and the API accepts ingredients with only some fields.
+    const partialIngredient = { name: "sól" } as Recipe["ingredients"][number]
+    vi.mocked(getRecipe).mockResolvedValue({ ...savedRecipe, ingredients: [partialIngredient] })
+    const onBack = renderEditor()
+
+    expect(await screen.findByLabelText("Składnik 1")).toHaveValue("sól")
+    expect(screen.getByLabelText("Ilość")).toHaveValue("")
+    expect(screen.getByLabelText("Waga lub objętość")).toHaveValue("")
+    expect(screen.getByLabelText("Miara")).toHaveValue("")
+    await user.click(screen.getByRole("button", { name: "Zapisz zmiany" }))
+
+    await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
+    expect(vi.mocked(updateRecipe).mock.calls[0][2].ingredients).toEqual([
+      { name: "sól", amount: "", unit: "", metric_amount: null, metric_unit: "" },
+    ])
+  })
+
   it("keeps the typed changes when saving fails", async () => {
     const user = userEvent.setup()
     vi.mocked(updateRecipe).mockRejectedValue(new ApiError("Nie udało się zapisać zmian."))

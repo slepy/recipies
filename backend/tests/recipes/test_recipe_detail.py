@@ -117,6 +117,13 @@ class RecipeDetailApiTests(TestCase):
         self.assertEqual(self.recipe.title, "Zupa pomidorowa")
         self.assertEqual(self.recipe.ingredients[0]["name"], "pomidory")
 
+    def test_rejects_a_json_body_that_is_not_an_object(self):
+        for body in ("null", '"Zupa"', "[1, 2]"):
+            response = self.client.patch(self.url, body, content_type="application/json")
+
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("recipe", response.data)
+
     def test_client_cannot_change_recipe_owner(self):
         other_user = User.objects.create_user("other@example.com", "another-long-password-48")
 

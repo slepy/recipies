@@ -9,6 +9,9 @@ def read_recipe_payload(request):
     A multipart form carries the fields as JSON text in "recipe" and the file in "photo".
     """
     if not request.content_type.startswith("multipart/form-data"):
+        # A JSON body can also be a list, a string or null, which dict() cannot turn into fields.
+        if not isinstance(request.data, dict):
+            raise ValidationError({"recipe": "Dane przepisu muszą być obiektem JSON."})
         # A copy, so callers can pop keys without changing request.data.
         return dict(request.data)
 

@@ -25,8 +25,15 @@ type IngredientDraft = Omit<Ingredient, "metric_amount"> & { metric_amount: stri
 const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "", metric_amount: "", metric_unit: "" }
 const metricUnits = ["g", "kg", "ml", "l"] as const
 
-function toIngredientDraft(ingredient: Ingredient): IngredientDraft {
-  return { ...ingredient, metric_amount: ingredient.metric_amount === null ? "" : String(ingredient.metric_amount) }
+// A saved ingredient can miss keys: the API accepts partial ingredients, and older recipes have no metric measure.
+function toIngredientDraft(ingredient: Partial<Ingredient>): IngredientDraft {
+  return {
+    name: ingredient.name ?? "",
+    amount: ingredient.amount ?? "",
+    unit: ingredient.unit ?? "",
+    metric_amount: numberText(ingredient.metric_amount),
+    metric_unit: ingredient.metric_unit ?? "",
+  }
 }
 
 function optionalNumber(value: string) {
