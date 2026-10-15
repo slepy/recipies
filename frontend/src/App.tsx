@@ -56,6 +56,29 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!accessToken) return
+
+    let isCurrent = true
+    const refreshTimer = window.setTimeout(async () => {
+      const token = await refreshAccessToken()
+      if (!isCurrent) return
+      if (token) {
+        setAccessToken(token)
+        return
+      }
+
+      setAccessToken(null)
+      setAccount(null)
+      setAuthState("anonymous")
+    }, 23 * 60 * 60 * 1000)
+
+    return () => {
+      isCurrent = false
+      window.clearTimeout(refreshTimer)
+    }
+  }, [accessToken])
+
   async function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError("")

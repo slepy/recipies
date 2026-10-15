@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 
@@ -15,6 +16,12 @@ class Recipe(models.Model):
     cook_time_minutes = models.PositiveIntegerField(null=True, blank=True)
     ingredients = models.JSONField(default=list, blank=True)
     steps = models.JSONField(default=list, blank=True)
+    photo = models.ImageField(
+        upload_to="recipe_photos/%Y/%m/",
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"])],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

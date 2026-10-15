@@ -1,3 +1,5 @@
+from django.core.validators import FileExtensionValidator
+from django.urls import reverse
 from rest_framework import serializers
 
 from recipes.models import Recipe
@@ -10,6 +12,12 @@ class IngredientSerializer(serializers.Serializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
+    photo = serializers.ImageField(
+        required=False,
+        write_only=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"])],
+    )
+    photo_url = serializers.SerializerMethodField()
     ingredients = IngredientSerializer(many=True, required=False)
     steps = serializers.ListField(
         child=serializers.CharField(max_length=2000, allow_blank=True),
@@ -27,6 +35,18 @@ class RecipeSerializer(serializers.ModelSerializer):
             "cook_time_minutes",
             "ingredients",
             "steps",
+            "photo",
+            "photo_url",
             "created_at",
         )
-        read_only_fields = ("id", "created_at")
+        read_only_fields = ("id", "photo_url", "created_at")
+
+    def validate_photo(self, photo):
+        if photo.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Zdjęcie może mieć maksymalnie 5 MB.")
+        return photo
+
+    def get_photo_url(self, recipe):
+        if not recipe.photo:
+            return None
+        return reverse("recipe-photo", kwargs={"recipe_id": recipe.pk})

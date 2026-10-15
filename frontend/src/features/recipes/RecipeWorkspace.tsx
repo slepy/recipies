@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react"
 
-import { createRecipe, getRecipes, Ingredient, Recipe, RecipeInput } from "./api"
+import { getProviderConfiguration } from "../integrations/api"
+import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeInput } from "./api"
 
 type RecipeWorkspaceProps = {
   accessToken: string
@@ -13,6 +14,8 @@ type RecipeWorkspaceProps = {
 type IngredientDraft = Ingredient
 
 const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "" }
+const maxPhotoSize = 5 * 1024 * 1024
+const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"]
 
 function optionalNumber(value: string) {
   return value === "" ? null : Number(value)
@@ -30,6 +33,8 @@ export default function RecipeWorkspace({
   onSignOut,
 }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [isProviderConfigured, setIsProviderConfigured] = useState(false)
+  const [isLoadingProviderConfiguration, setIsLoadingProviderConfiguration] = useState(true)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [servings, setServings] = useState("")
@@ -37,21 +42,50 @@ export default function RecipeWorkspace({
   const [cookTime, setCookTime] = useState("")
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([{ ...emptyIngredient }])
   const [steps, setSteps] = useState<string[]>([""])
+  const [dishPhoto, setDishPhoto] = useState<File | null>(null)
+  const [dishPhotoPreview, setDishPhotoPreview] = useState("")
+  const [photoError, setPhotoError] = useState("")
+  const [recipePhotoUrls, setRecipePhotoUrls] = useState<Record<number, string>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [hasLoadedRecipes, setHasLoadedRecipes] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState("")
+  const [loadError, setLoadError] = useState("")
   const [notice, setNotice] = useState("")
+
+  useEffect(() => {
+    let isCurrent = true
+
+    getProviderConfiguration(accessToken)
+      .then((configuration) => {
+        if (isCurrent) setIsProviderConfigured(configuration.configured)
+      })
+      .catch(() => {
+        if (isCurrent) setIsProviderConfigured(false)
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingProviderConfiguration(false)
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [accessToken])
 
   useEffect(() => {
     let isCurrent = true
 
     getRecipes(accessToken)
       .then((result) => {
-        if (isCurrent) setRecipes(result)
-      })
-      .catch((loadError: unknown) => {
         if (isCurrent) {
-          setError(loadError instanceof Error ? loadError.message : "Nie udało się pobrać przepisów.")
+          setRecipes(result)
+          setHasLoadedRecipes(true)
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (isCurrent && requestError instanceof ApiError && requestError.message) {
+          setLoadError(requestError.message)
         }
       })
       .finally(() => {
@@ -63,12 +97,77 @@ export default function RecipeWorkspace({
     }
   }, [accessToken])
 
+  useEffect(() => {
+    if (!dishPhoto) {
+      setDishPhotoPreview("")
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(dishPhoto)
+    setDishPhotoPreview(previewUrl)
+    return () => URL.revokeObjectURL(previewUrl)
+  }, [dishPhoto])
+
+  useEffect(() => {
+    let isCurrent = true
+    const objectUrls: string[] = []
+
+    Promise.all(
+      recipes.map(async (recipe) => {
+        if (!recipe.photo_url) return null
+        try {
+          const photoBlob = await getRecipePhoto(accessToken, recipe.photo_url)
+          const photoObjectUrl = URL.createObjectURL(photoBlob)
+          objectUrls.push(photoObjectUrl)
+          return [recipe.id, photoObjectUrl] as const
+        } catch {
+          return null
+        }
+      }),
+    ).then((entries) => {
+      const photoEntries = entries.filter(
+        (entry): entry is readonly [number, string] => entry !== null,
+      )
+      if (isCurrent) setRecipePhotoUrls(Object.fromEntries(photoEntries))
+    })
+
+    return () => {
+      isCurrent = false
+      objectUrls.forEach((photoObjectUrl) => URL.revokeObjectURL(photoObjectUrl))
+    }
+  }, [accessToken, recipes])
+
   function updateIngredient(index: number, field: keyof IngredientDraft, value: string) {
     setIngredients((current) =>
       current.map((ingredient, ingredientIndex) =>
         ingredientIndex === index ? { ...ingredient, [field]: value } : ingredient,
       ),
     )
+  }
+
+  function selectDishPhoto(file: File | undefined) {
+    setPhotoError("")
+    if (!file) {
+      setDishPhoto(null)
+      return
+    }
+    if (!allowedPhotoTypes.includes(file.type)) {
+      setDishPhoto(null)
+      setPhotoError("Wybierz zdjęcie w formacie JPG, PNG lub WebP.")
+      return
+    }
+    if (file.size > maxPhotoSize) {
+      setDishPhoto(null)
+      setPhotoError("Zdjęcie może mieć maksymalnie 5 MB.")
+      return
+    }
+    setDishPhoto(file)
+  }
+
+  function startNewRecipe() {
+    setError("")
+    setPhotoError("")
+    setIsCreating(true)
   }
 
   async function submitRecipe(event: FormEvent<HTMLFormElement>) {
@@ -92,6 +191,7 @@ export default function RecipeWorkspace({
         .filter((ingredient) => ingredient.name || ingredient.amount || ingredient.unit),
       steps: steps.map((step) => step.trim()).filter(Boolean),
     }
+    if (dishPhoto) recipeInput.photo = dishPhoto
 
     try {
       const recipe = await createRecipe(accessToken, recipeInput)
@@ -103,7 +203,9 @@ export default function RecipeWorkspace({
       setCookTime("")
       setIngredients([{ ...emptyIngredient }])
       setSteps([""])
+      setDishPhoto(null)
       setNotice("Przepis został zapisany w Twojej kolekcji.")
+      setIsCreating(false)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Nie udało się zapisać przepisu.")
     } finally {
@@ -131,11 +233,35 @@ export default function RecipeWorkspace({
         <p className="recipe-account-error" role="alert">{accountError}</p>
       )}
 
-      <div className="recipe-workspace">
+      {isCreating ? (
+      <div className="recipe-workspace recipe-workspace--form">
         <section className="recipe-editor" aria-labelledby="recipe-heading">
+          <button className="text-button recipe-back" onClick={() => setIsCreating(false)} type="button">
+            ← Moje przepisy
+          </button>
           <span className="eyebrow">TWOJA KUCHNIA</span>
           <h1 id="recipe-heading">Dodaj przepis</h1>
           <p className="recipe-intro">Zapisz swój przepis, aby wrócić do niego przy planowaniu posiłków.</p>
+
+          <section className="recipe-ai-prompt" aria-labelledby="recipe-ai-heading">
+            <div>
+              <span className="eyebrow">ALTERNATYWNIE · AI</span>
+              <h2 id="recipe-ai-heading">Odczytaj przepis z fotografii</h2>
+              <p>Import ze zdjęcia będzie edytowalnym szkicem. Rozpoznawanie uruchomimy po zatwierdzeniu dostawcy i zasad wysyłania zdjęć.</p>
+            </div>
+            <button
+              className="secondary-button"
+              disabled={isLoadingProviderConfiguration}
+              onClick={onOpenIntegrations}
+              type="button"
+            >
+              {isLoadingProviderConfiguration
+                ? "Sprawdzam AI..."
+                : isProviderConfigured
+                  ? "Zarządzaj AI"
+                  : "Konfiguruj AI"}
+            </button>
+          </section>
 
           <form className="recipe-form" onSubmit={submitRecipe}>
             <fieldset className="recipe-section">
@@ -160,6 +286,30 @@ export default function RecipeWorkspace({
                   value={description}
                 />
               </label>
+              <div className="recipe-photo-field">
+                <label className="recipe-field" htmlFor="recipe-photo">
+                  <span>Zdjęcie gotowego dania</span>
+                  <span className="recipe-photo-picker">
+                    <span>{dishPhoto ? dishPhoto.name : "Wybierz zdjęcie"}</span>
+                    <input
+                      accept="image/jpeg,image/png,image/webp"
+                      id="recipe-photo"
+                      onChange={(event) => selectDishPhoto(event.target.files?.[0])}
+                      type="file"
+                    />
+                  </span>
+                  <small>JPG, PNG lub WebP · maks. 5 MB</small>
+                </label>
+                {photoError && <p className="form-error" role="alert">{photoError}</p>}
+                {dishPhotoPreview && (
+                  <div className="recipe-photo-preview">
+                    <img src={dishPhotoPreview} alt="Podgląd zdjęcia gotowego dania" />
+                    <button className="text-button" onClick={() => setDishPhoto(null)} type="button">
+                      Usuń zdjęcie
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="recipe-number-grid">
                 <label className="recipe-field" htmlFor="recipe-servings">
                   <span>Porcje</span>
@@ -299,33 +449,46 @@ export default function RecipeWorkspace({
             </fieldset>
 
             {error && <p className="form-error" role="alert">{error}</p>}
-            {notice && <p className="integration-status" role="status">{notice}</p>}
             <button className="primary-button recipe-submit" disabled={isSaving} type="submit">
               {isSaving ? "Zapisuję..." : "Zapisz przepis"}
             </button>
           </form>
         </section>
-
-        <section className="recipe-collection" aria-labelledby="collection-heading">
-          <div className="collection-heading-row">
+      </div>
+      ) : (
+        <section className="recipe-home" aria-labelledby="collection-heading">
+          <div className="recipe-home__heading">
             <div>
               <span className="eyebrow">ZAPISANE NA TWOIM KONCIE</span>
-              <h2 id="collection-heading">Moje przepisy</h2>
+              <h1 id="collection-heading">Moje przepisy</h1>
+              <p className="recipe-intro">Twoja kolekcja sprawdzonych pomysłów na codzienne gotowanie.</p>
             </div>
-            <span className="recipe-count" aria-label={`${recipes.length} przepisów`}>{recipes.length}</span>
+            <button className="primary-button" onClick={startNewRecipe} type="button">
+              + Dodaj nowy
+            </button>
           </div>
 
+          {notice && <p className="integration-status" role="status">{notice}</p>}
+          {loadError && <p className="form-error" role="alert">{loadError}</p>}
           {isLoading ? (
             <p className="session-message" role="status">Pobieram przepisy...</p>
-          ) : recipes.length === 0 ? (
-            <p className="collection-empty">Twoja kolekcja jest pusta. Dodaj pierwszy przepis.</p>
+          ) : !hasLoadedRecipes ? null : recipes.length === 0 ? (
+            <div className="collection-empty">
+              <p>Nie masz jeszcze zapisanych przepisów.</p>
+              <button className="text-button" onClick={startNewRecipe} type="button">
+                Dodaj pierwszy przepis
+              </button>
+            </div>
           ) : (
             <div className="recipe-list">
               {recipes.map((recipe) => (
                 <article className="recipe-entry" key={recipe.id}>
+                  {recipePhotoUrls[recipe.id] && (
+                    <img className="recipe-entry__photo" src={recipePhotoUrls[recipe.id]} alt={recipe.title} />
+                  )}
                   <div className="recipe-entry-heading">
                     <div>
-                      <h3>{recipe.title}</h3>
+                      <h2>{recipe.title}</h2>
                       <p>{recipe.description || "Bez opisu"}</p>
                     </div>
                     <time dateTime={recipe.created_at}>
@@ -356,7 +519,7 @@ export default function RecipeWorkspace({
             </div>
           )}
         </section>
-      </div>
+      )}
     </main>
   )
 }

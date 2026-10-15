@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { act, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import App from "../../App"
 import { getCurrentUser, logIn, logOut, refreshAccessToken, register } from "./api"
@@ -27,6 +27,10 @@ vi.mock("../recipes/api", () => ({
 }))
 
 describe("account access screen", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(refreshAccessToken).mockResolvedValue(null)
@@ -63,6 +67,28 @@ describe("account access screen", () => {
     expect(register).toHaveBeenCalledWith("cook@example.com", "a-long-unique-password")
     expect(logIn).not.toHaveBeenCalled()
     expect(logOut).not.toHaveBeenCalled()
+  })
+
+  it("refreshes the access token before it expires", async () => {
+    vi.useFakeTimers()
+    vi.mocked(refreshAccessToken)
+      .mockResolvedValueOnce("initial-access-token")
+      .mockResolvedValueOnce("renewed-access-token")
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: 1, email: "cook@example.com" })
+    render(<App />)
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByRole("heading", { name: "Moje przepisy" })).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(23 * 60 * 60 * 1000)
+    })
+
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2)
   })
 
   it("opens AI integration settings from the signed-in view", async () => {
