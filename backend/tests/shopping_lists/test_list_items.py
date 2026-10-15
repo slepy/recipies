@@ -12,7 +12,7 @@ class ShoppingListItemApiTests(TestCase):
         add_entry(self.client, plan_id, meals[0], create_recipe(self.user))
         self.list = self.client.post("/api/shopping-lists/", {"plan": plan_id, "name": "Zakupy"}, format="json").data
         self.items_url = f"/api/shopping-lists/{self.list['id']}/items/"
-        self.recipe_item = self.list["items"][0]
+        self.recipe_item = next(item for item in self.list["items"] if item["name"] == "makaron")
 
     def add_custom(self, **data):
         return self.client.post(self.items_url, {"name": "mleko", "amount": "2", "unit": "szt", **data}, format="json")
@@ -61,6 +61,42 @@ class ShoppingListItemApiTests(TestCase):
         detail = self.client.get(f"/api/shopping-lists/{self.list['id']}/").data
 
         self.assertTrue(next(item for item in detail["items"] if item["id"] == self.recipe_item["id"])["bought"])
+
+    def test_increases_a_recipe_item_in_both_measures_and_takes_it_back(self):
+        url = f"{self.items_url}{self.recipe_item['id']}/"
+
+        increased = self.client.patch(url, {"increase_amount": 100, "increase_metric_amount": 900}, format="json")
+        restored = self.client.patch(url, {"reset_increase": True}, format="json")
+
+        self.assertEqual((increased.data["amount"], increased.data["unit"]), (300, "g"))
+        self.assertEqual((increased.data["metric_amount"], increased.data["metric_unit"]), (1.1, "kg"))
+        self.assertEqual((restored.data["amount"], restored.data["metric_amount"], restored.data["metric_unit"]), (200, 200, "g"))
+        self.assertEqual((restored.data["extra_amount"], restored.data["extra_metric"]), (0, 0))
+
+    def test_cannot_increase_a_measure_the_item_does_not_have(self):
+        eggs = next(item for item in self.list["items"] if item["name"] == "jajka")
+        url = f"{self.items_url}{eggs['id']}/"
+
+        self.assertEqual(self.client.patch(url, {"increase_metric_amount": 5}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"increase_amount": 0}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"increase_amount": 2}, format="json").data["amount"], 4)
+
+    def test_increase_after_buying_leaves_the_bought_snapshot_for_the_difference(self):
+        url = f"{self.items_url}{self.recipe_item['id']}/"
+        self.client.patch(url, {"bought": True}, format="json")
+
+        response = self.client.patch(url, {"increase_amount": 100}, format="json")
+
+        self.assertTrue(response.data["bought"])
+        self.assertEqual((response.data["amount"], response.data["bought_amount"]), (300, 200))
+        self.assertEqual(response.data["bought_metric_base"], 200)
+
+    def test_custom_items_do_not_use_the_increase_action(self):
+        item_id = self.add_custom().data["id"]
+
+        response = self.client.patch(f"{self.items_url}{item_id}/", {"increase_amount": 1}, format="json")
+
+        self.assertEqual(response.status_code, 400)
 
     def test_recipe_items_cannot_be_edited_or_deleted(self):
         url = f"{self.items_url}{self.recipe_item['id']}/"

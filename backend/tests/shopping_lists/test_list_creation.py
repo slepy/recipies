@@ -26,8 +26,9 @@ class ShoppingListCreationApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         items = {item["name"]: item for item in response.data["items"]}
         self.assertEqual((items["makaron"]["amount"], items["makaron"]["unit"]), (600, "g"))
+        self.assertEqual((items["makaron"]["metric_amount"], items["makaron"]["metric_unit"]), (600, "g"))
         self.assertEqual(items["makaron"]["origin"], "recipe")
-        self.assertEqual(len(items["makaron"]["sources"]), 2)
+        self.assertNotIn("sources", items["makaron"])
         self.assertFalse(response.data["is_stale"])
 
     def test_limits_the_list_to_the_chosen_dates(self):

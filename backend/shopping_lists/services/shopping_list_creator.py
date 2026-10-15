@@ -23,8 +23,9 @@ class ShoppingListCreator:
                 excluded_entry_ids=excluded_entry_ids,
                 generated_at=timezone.now(),
             )
+            aggregator = IngredientAggregator()
             ShoppingListItem.objects.bulk_create(
-                ShoppingListItem(shopping_list=shopping_list, origin=ShoppingListItem.RECIPE, **item)
-                for item in IngredientAggregator().aggregate(entries)
+                ShoppingListItem(shopping_list=shopping_list, origin=ShoppingListItem.RECIPE, **aggregator.present(row))
+                for row in aggregator.aggregate(entries)
             )
         return shopping_list

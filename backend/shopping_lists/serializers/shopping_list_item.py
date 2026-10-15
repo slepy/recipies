@@ -16,9 +16,11 @@ class ShoppingListItemSerializer(serializers.ModelSerializer):
             "metric_amount",
             "metric_unit",
             "partial",
-            "sources",
             "bought",
             "bought_amount",
+            "bought_metric_base",
+            "extra_amount",
+            "extra_metric",
             "is_new",
         )
         read_only_fields = fields

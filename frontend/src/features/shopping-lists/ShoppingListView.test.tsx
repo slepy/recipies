@@ -7,7 +7,9 @@ import {
   addCustomItem,
   getRefreshPreview,
   getShoppingList,
+  increaseItem,
   ListItem,
+  resetItemIncrease,
   refreshShoppingList,
   setItemBought,
   ShoppingList,
@@ -19,6 +21,8 @@ vi.mock("./api", () => ({
   deleteShoppingList: vi.fn(),
   getRefreshPreview: vi.fn(),
   getShoppingList: vi.fn(),
+  increaseItem: vi.fn(),
+  resetItemIncrease: vi.fn(),
   refreshShoppingList: vi.fn(),
   setItemBought: vi.fn(),
 }))
@@ -34,7 +38,9 @@ function item(overrides: Partial<ListItem>): ListItem {
     metric_amount: null,
     metric_unit: "",
     partial: false,
-    sources: [{ recipe: "Spaghetti", date: "2026-11-02", meal: "Obiad" }],
+    bought_metric_base: null,
+    extra_amount: 0,
+    extra_metric: 0,
     bought: false,
     bought_amount: null,
     is_new: false,
@@ -80,23 +86,69 @@ describe("shopping list view", () => {
 
   it("labels recipe and custom items and shows where recipe items come from", async () => {
     vi.mocked(getShoppingList).mockResolvedValue(
-      list([item({}), item({ id: 2, name: "mleko", origin: "custom", amount: 2, unit: "l", sources: [] })]),
+      list([item({}), item({ id: 2, name: "mleko", origin: "custom", amount: 2, unit: "l" })]),
     )
     renderList()
 
     expect(await screen.findByText("makaron 600 g")).toBeInTheDocument()
     expect(screen.getByText("własna")).toBeInTheDocument()
     expect(screen.getByText("z przepisów")).toBeInTheDocument()
-    expect(screen.getByText(/Spaghetti – .* obiad/)).toBeInTheDocument()
+    expect(screen.queryByText(/Spaghetti/)).not.toBeInTheDocument()
   })
 
   it("shows a custom item with its amount as typed and its metric measure", async () => {
     vi.mocked(getShoppingList).mockResolvedValue(
-      list([item({ id: 2, name: "śmietana", origin: "custom", amount: 0.5, amount_text: "1/2", unit: "kubek", metric_amount: 125, metric_unit: "ml", sources: [] })]),
+      list([item({ id: 2, name: "śmietana", origin: "custom", amount: 0.5, amount_text: "1/2", unit: "kubek", metric_amount: 125, metric_unit: "ml" })]),
     )
     renderList()
 
     expect(await screen.findByText("śmietana 1/2 kubek (125 ml)")).toBeInTheDocument()
+  })
+
+  it("shows the amount, unit, weight and measure of a recipe item together", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ name: "mąka", amount: 2, unit: "szklanki", metric_amount: 300, metric_unit: "g" })]),
+    )
+    renderList()
+
+    expect(await screen.findByText("mąka 2 szklanki (300 g)")).toBeInTheDocument()
+  })
+
+  it("increases a recipe item in both measures", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ name: "mąka", amount: 2, unit: "szklanki", metric_amount: 300, metric_unit: "g" })]),
+    )
+    vi.mocked(increaseItem).mockResolvedValue(item({}))
+    renderList()
+
+    await userEvent.click(await screen.findByRole("button", { name: "Zwiększ ilość: mąka" }))
+    await userEvent.type(screen.getByLabelText("Dodaj ilość: mąka"), "1")
+    await userEvent.type(screen.getByLabelText("Dodaj wagę lub objętość: mąka"), "150")
+    await userEvent.click(screen.getByRole("button", { name: "Zwiększ" }))
+
+    expect(increaseItem).toHaveBeenCalledWith("token", 8, 1, { increase_amount: 1, increase_metric_amount: 150 })
+  })
+
+  it("offers only the measures the item has and can take the increase back", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(list([item({ name: "jajka", amount: 4, unit: "szt", extra_amount: 2 })]))
+    vi.mocked(resetItemIncrease).mockResolvedValue(item({}))
+    renderList()
+
+    await userEvent.click(await screen.findByRole("button", { name: "Zwiększ ilość: jajka" }))
+    expect(screen.queryByLabelText(/Dodaj wagę lub objętość/)).not.toBeInTheDocument()
+    expect(screen.getByText("zwiększona ręcznie")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Cofnij zwiększenie: jajka" }))
+
+    expect(resetItemIncrease).toHaveBeenCalledWith("token", 8, 1)
+  })
+
+  it("tells how much more to buy in each measure after an increase of a bought item", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ bought: true, amount: 3, unit: "szt", bought_amount: 2, metric_amount: 1.2, metric_unit: "kg", bought_metric_base: 1000 })]),
+    )
+    renderList()
+
+    expect(await screen.findByText("Ilość zmieniona od zakupu: dokup 1 szt i 0.2 kg")).toBeInTheDocument()
   })
 
   it("shows bought items under the active ones and lets the user restore them", async () => {

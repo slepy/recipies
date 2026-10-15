@@ -6,13 +6,13 @@ from shopping_lists.services.ingredient_aggregator import IngredientAggregator
 from shopping_lists.services.plan_entry_selector import PlanEntrySelector
 
 
-def _same(item, fresh):
-    return (item.amount, item.unit, item.partial, item.sources) == (
-        fresh["amount"],
-        fresh["unit"],
-        fresh["partial"],
-        fresh["sources"],
-    )
+def _shown(item):
+    return (item.amount, item.unit, item.metric_amount, item.metric_unit, item.partial)
+
+
+def _shown_after_refresh(item, fresh):
+    shown = IngredientAggregator().present(fresh, item.extra_amount, item.extra_metric)
+    return shown, (shown["amount"], shown["unit"], shown["metric_amount"], shown["metric_unit"], shown["partial"])
 
 
 class ShoppingListRefresher:
@@ -29,7 +29,7 @@ class ShoppingListRefresher:
             shopping_list.scope_end,
             shopping_list.excluded_entry_ids,
         )
-        fresh = {item["key"]: item for item in IngredientAggregator().aggregate(entries)}
+        fresh = {row["key"]: row for row in IngredientAggregator().aggregate(entries)}
         current = {
             item.key: item for item in shopping_list.items.filter(origin=ShoppingListItem.RECIPE)
         }
@@ -37,7 +37,11 @@ class ShoppingListRefresher:
             "fresh": fresh,
             "current": current,
             "added": [key for key in fresh if key not in current],
-            "changed": [key for key in fresh if key in current and not _same(current[key], fresh[key])],
+            "changed": [
+                key
+                for key in fresh
+                if key in current and _shown_after_refresh(current[key], fresh[key])[1] != _shown(current[key])
+            ],
             "removed": [key for key in current if key not in fresh],
         }
 
@@ -68,15 +72,20 @@ class ShoppingListRefresher:
             for key, item in current.items():
                 if key in fresh:
                     # Same product and kind of measure: keep the bought state, take the new numbers.
-                    item.amount = fresh[key]["amount"]
-                    item.unit = fresh[key]["unit"]
-                    item.partial = fresh[key]["partial"]
-                    item.sources = fresh[key]["sources"]
+                    shown, _ = _shown_after_refresh(item, fresh[key])
+                    item.amount = shown["amount"]
+                    item.unit = shown["unit"]
+                    item.metric_amount = shown["metric_amount"]
+                    item.metric_unit = shown["metric_unit"]
+                    item.partial = shown["partial"]
                     item.is_new = False
                     item.save()
 
+            aggregator = IngredientAggregator()
             ShoppingListItem.objects.bulk_create(
-                ShoppingListItem(shopping_list=locked, origin=ShoppingListItem.RECIPE, is_new=True, **fresh[key])
+                ShoppingListItem(
+                    shopping_list=locked, origin=ShoppingListItem.RECIPE, is_new=True, **aggregator.present(fresh[key])
+                )
                 for key in difference["added"]
             )
             locked.generated_at = timezone.now()

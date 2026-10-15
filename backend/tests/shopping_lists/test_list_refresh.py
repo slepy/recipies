@@ -103,3 +103,21 @@ class ShoppingListRefreshApiTests(TestCase):
 
         self.assertEqual(self.item("makaron")["amount"], 200)
         self.assertEqual(MealEntry.objects.count(), 2)
+
+    def test_manual_increase_survives_a_refresh_and_adds_to_the_new_amount(self):
+        makaron = self.item("makaron")
+        url = f"{self.url}items/{makaron['id']}/"
+        self.client.patch(url, {"increase_amount": 50, "increase_metric_amount": 100}, format="json")
+        add_entry(self.client, self.plan_id, self.meals[1], self.recipe, servings=2)
+
+        self.client.post(f"{self.url}refresh/")
+
+        makaron = self.item("makaron")
+        self.assertEqual((makaron["amount"], makaron["metric_amount"], makaron["metric_unit"]), (450, 500, "g"))
+        self.assertEqual((makaron["extra_amount"], makaron["extra_metric"]), (50, 100))
+
+    def test_list_with_a_manual_increase_is_not_stale(self):
+        makaron = self.item("makaron")
+        self.client.patch(f"{self.url}items/{makaron['id']}/", {"increase_amount": 50}, format="json")
+
+        self.assertFalse(self.client.get(self.url).data["is_stale"])

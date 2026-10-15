@@ -10,9 +10,11 @@ export type ListItem = {
   metric_amount: number | null
   metric_unit: "" | "g" | "kg" | "ml" | "l"
   partial: boolean
-  sources: { recipe: string; date: string; meal: string }[]
   bought: boolean
   bought_amount: number | null
+  bought_metric_base: number | null
+  extra_amount: number
+  extra_metric: number
   is_new: boolean
 }
 
@@ -86,6 +88,23 @@ export function setItemBought(accessToken: string, listId: number, itemId: numbe
   return apiRequest<ListItem>(accessToken, `${listsPath}${listId}/items/${itemId}/`, {
     method: "PATCH",
     body: { bought },
+  })
+}
+
+// Raise the amount of a recipe item; the metric increase is in the item's own metric unit.
+export function increaseItem(
+  accessToken: string,
+  listId: number,
+  itemId: number,
+  increase: { increase_amount?: number; increase_metric_amount?: number },
+) {
+  return apiRequest<ListItem>(accessToken, `${listsPath}${listId}/items/${itemId}/`, { method: "PATCH", body: increase })
+}
+
+export function resetItemIncrease(accessToken: string, listId: number, itemId: number) {
+  return apiRequest<ListItem>(accessToken, `${listsPath}${listId}/items/${itemId}/`, {
+    method: "PATCH",
+    body: { reset_increase: true },
   })
 }
 

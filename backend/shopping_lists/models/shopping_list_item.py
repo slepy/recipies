@@ -21,10 +21,14 @@ class ShoppingListItem(models.Model):
     metric_unit = models.CharField(max_length=2, blank=True, default="")
     # True when the same ingredient also appears in a different measure, so this sum covers only part of it.
     partial = models.BooleanField(default=False)
-    sources = models.JSONField(default=list, blank=True)
+    # What the user added by hand on top of the computed amount; kept across refreshes.
+    # Metric extras are in g or ml, so they stay correct when the display switches between g and kg.
+    extra_amount = models.FloatField(default=0)
+    extra_metric = models.FloatField(default=0)
     bought = models.BooleanField(default=False)
     # The amount at the moment the item was marked as bought, to spot later increases.
     bought_amount = models.FloatField(null=True, blank=True)
+    bought_metric_base = models.FloatField(null=True, blank=True)
     is_new = models.BooleanField(default=False)
 
     class Meta:

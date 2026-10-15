@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react"
 
-import { formatShortDay } from "../../shared/lib/formatDate"
 import ConfirmBar from "../../shared/ui/ConfirmBar"
 import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
 import {
@@ -10,9 +9,11 @@ import {
   deleteShoppingList,
   getRefreshPreview,
   getShoppingList,
+  increaseItem,
   ListItem,
   RefreshPreview,
   refreshShoppingList,
+  resetItemIncrease,
   setItemBought,
   ShoppingList,
 } from "./api"
@@ -36,22 +37,51 @@ function quantity(item: ListItem) {
   return [amount, item.unit, metric].filter(Boolean).join(" ")
 }
 
-function sourceText(source: ListItem["sources"][number]) {
-  return `${source.recipe} – ${formatShortDay(source.date)} ${source.meal.toLowerCase()}`
-}
+const metricFactor: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000 }
 
-function ItemRow({ item, isBusy, onToggle, onDelete }: {
+function ItemRow({ item, isBusy, onToggle, onDelete, onIncrease, onResetIncrease }: {
   item: ListItem
   isBusy: boolean
   onToggle: () => void
   onDelete: () => void
+  onIncrease: (increase: { increase_amount?: number; increase_metric_amount?: number }) => void
+  onResetIncrease: () => void
 }) {
+  const [isIncreasing, setIsIncreasing] = useState(false)
+  const [moreAmount, setMoreAmount] = useState("")
+  const [moreMetric, setMoreMetric] = useState("")
   const label = [item.name, quantity(item)].filter(Boolean).join(" ")
+  const canIncrease = item.origin === "recipe" && (item.amount !== null || item.metric_amount !== null)
+  const hasIncrease = item.extra_amount > 0 || item.extra_metric > 0
+
   // A bought item whose amount grew since it was bought still needs the difference.
-  const missing =
-    item.bought && item.amount !== null && item.bought_amount !== null && item.amount > item.bought_amount
+  const missingAmount =
+    item.bought && item.amount !== null && item.bought_amount !== null
       ? Math.round((item.amount - item.bought_amount) * 100) / 100
       : 0
+  const currentBase = item.metric_amount === null ? null : item.metric_amount * (metricFactor[item.metric_unit] ?? 1)
+  const missingMetric =
+    item.bought && currentBase !== null && item.bought_metric_base !== null
+      ? Math.round((currentBase - item.bought_metric_base) / (metricFactor[item.metric_unit] ?? 1) * 100) / 100
+      : 0
+  const missing = [
+    missingAmount > 0 ? `${missingAmount} ${item.unit}`.trim() : "",
+    missingMetric > 0 ? `${missingMetric} ${item.metric_unit}` : "",
+  ].filter(Boolean)
+
+  function submitIncrease(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const increase: { increase_amount?: number; increase_metric_amount?: number } = {}
+    const amount = Number(moreAmount.trim().replace(",", "."))
+    const metric = Number(moreMetric.trim().replace(",", "."))
+    if (moreAmount.trim() && amount > 0) increase.increase_amount = amount
+    if (moreMetric.trim() && metric > 0) increase.increase_metric_amount = metric
+    if (Object.keys(increase).length === 0) return
+    onIncrease(increase)
+    setMoreAmount("")
+    setMoreMetric("")
+    setIsIncreasing(false)
+  }
 
   return (
     <li className={item.bought ? "list-item list-item--bought" : "list-item"}>
@@ -62,9 +92,47 @@ function ItemRow({ item, isBusy, onToggle, onDelete }: {
       {item.origin === "custom" ? <span className="badge">własna</span> : <span className="badge badge--recipe">z przepisów</span>}
       {item.is_new && <span className="badge">nowa</span>}
       {item.bought && <span className="badge">kupione</span>}
+      {hasIncrease && <span className="badge">zwiększona ręcznie</span>}
       {item.partial && <small>Suma obejmuje tylko część: ten składnik występuje też w innej mierze.</small>}
-      {missing > 0 && <small>Ilość zmieniona od zakupu: dokup {missing} {item.unit}</small>}
-      {item.sources.length > 0 && <small>{item.sources.map(sourceText).join("; ")}</small>}
+      {missing.length > 0 && <small>Ilość zmieniona od zakupu: dokup {missing.join(" i ")}</small>}
+      {canIncrease && !isIncreasing && (
+        <button className="text-button" disabled={isBusy} onClick={() => setIsIncreasing(true)} type="button">
+          Zwiększ ilość: {item.name}
+        </button>
+      )}
+      {hasIncrease && (
+        <button className="text-button" disabled={isBusy} onClick={onResetIncrease} type="button">
+          Cofnij zwiększenie: {item.name}
+        </button>
+      )}
+      {isIncreasing && (
+        <form className="list-item__increase" onSubmit={submitIncrease} noValidate aria-label={`Zwiększ ilość: ${item.name}`}>
+          {item.amount !== null && (
+            <label>
+              <span>Dodaj ilość{item.unit && ` (${item.unit})`}</span>
+              <input
+                aria-label={`Dodaj ilość: ${item.name}`}
+                inputMode="decimal"
+                onChange={(event) => setMoreAmount(event.target.value)}
+                value={moreAmount}
+              />
+            </label>
+          )}
+          {item.metric_amount !== null && (
+            <label>
+              <span>Dodaj wagę lub objętość ({item.metric_unit})</span>
+              <input
+                aria-label={`Dodaj wagę lub objętość: ${item.name}`}
+                inputMode="decimal"
+                onChange={(event) => setMoreMetric(event.target.value)}
+                value={moreMetric}
+              />
+            </label>
+          )}
+          <button className="secondary-button" disabled={isBusy} type="submit">Zwiększ</button>
+          <button className="text-button" onClick={() => setIsIncreasing(false)} type="button">Anuluj</button>
+        </form>
+      )}
       {item.origin === "custom" && (
         <button className="text-button" disabled={isBusy} onClick={onDelete} type="button">
           Usuń pozycję: {item.name}
@@ -250,7 +318,15 @@ export default function ShoppingListView({
               {active.length === 0 && <p>Wszystko kupione.</p>}
               <ul className="list-items">
                 {active.map((item) => (
-                  <ItemRow isBusy={isBusy} item={item} key={item.id} onDelete={() => void run(async () => { await deleteCustomItem(accessToken, listId, item.id); await load() })} onToggle={() => toggle(item)} />
+                  <ItemRow
+                    isBusy={isBusy}
+                    item={item}
+                    key={item.id}
+                    onDelete={() => void run(async () => { await deleteCustomItem(accessToken, listId, item.id); await load() })}
+                    onIncrease={(increase) => void run(async () => { await increaseItem(accessToken, listId, item.id, increase); await load() })}
+                    onResetIncrease={() => void run(async () => { await resetItemIncrease(accessToken, listId, item.id); await load() })}
+                    onToggle={() => toggle(item)}
+                  />
                 ))}
               </ul>
             </section>
@@ -289,7 +365,15 @@ export default function ShoppingListView({
               <h2 id="bought-heading">Kupione ({bought.length})</h2>
               <ul className="list-items">
                 {bought.map((item) => (
-                  <ItemRow isBusy={isBusy} item={item} key={item.id} onDelete={() => void run(async () => { await deleteCustomItem(accessToken, listId, item.id); await load() })} onToggle={() => toggle(item)} />
+                  <ItemRow
+                    isBusy={isBusy}
+                    item={item}
+                    key={item.id}
+                    onDelete={() => void run(async () => { await deleteCustomItem(accessToken, listId, item.id); await load() })}
+                    onIncrease={(increase) => void run(async () => { await increaseItem(accessToken, listId, item.id, increase); await load() })}
+                    onResetIncrease={() => void run(async () => { await resetItemIncrease(accessToken, listId, item.id); await load() })}
+                    onToggle={() => toggle(item)}
+                  />
                 ))}
               </ul>
             </section>

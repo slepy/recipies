@@ -4,71 +4,112 @@ MASS = {"g": 1, "kg": 1000}
 VOLUME = {"ml": 1, "l": 1000}
 
 
+def metric_base(amount, unit):
+    """Metric amount in g or ml, or None when the item has no metric measure."""
+    if amount is None:
+        return None
+    return amount * {**MASS, **VOLUME}.get(unit, 1)
+
+
+def format_metric(dimension, base):
+    """Show a total in g/ml, switching to kg/l from one thousand. Rounds the finished sum only."""
+    if base is None:
+        return None, ""
+    small, large = ("g", "kg") if dimension == "mass" else ("ml", "l")
+    if base >= 1000:
+        return round(base / 1000, 2), large
+    return round(base, 2), small
+
+
 class IngredientAggregator:
     """Scales the ingredients of plan entries and sums them per product.
 
-    Each ingredient contributes one measure: the metric one when it has it (g/kg add up, ml/l add up),
-    otherwise the household one when the amount is a number (added only within the same unit),
-    otherwise it stays on the list without a quantity. There are no conversions between kinds.
+    The household measure (amount + unit) is added only within the same unit, and the metric one
+    (g/kg together, ml/l together) within the same kind, each on its own. One row carries both
+    measures; a second row appears only when a product has several household units or both mass
+    and volume. There are no conversions between kinds.
     """
 
     def aggregate(self, entries):
         scaler = IngredientScaler()
-        groups = {}
+        products = {}
         for entry in entries:
-            source = {"recipe": entry.recipe.title, "date": entry.meal.date.isoformat(), "meal": entry.meal.name}
             for ingredient in scaler.scale(entry.recipe, entry.servings):
                 name = ingredient["name"].strip()
                 if not name:
                     continue
-                measure, amount, unit = self.measure(ingredient)
+                household = (ingredient["amount"], ingredient["unit"].strip()) if ingredient["amount"] is not None else None
+                metric = self.metric(ingredient)
                 normalized_name = " ".join(name.casefold().split())
-                group = groups.setdefault(
-                    (normalized_name, measure),
-                    {"name": name, "amount": None, "unit": unit, "sources": []},
+                products.setdefault(normalized_name, {"name": name, "contributions": []})["contributions"].append(
+                    (household, metric)
                 )
-                if amount is not None:
-                    group["amount"] = (group["amount"] or 0) + amount
-                if source not in group["sources"]:
-                    group["sources"].append(source)
 
-        kinds_per_name = {}
-        for normalized_name, measure in groups:
-            kinds_per_name[normalized_name] = kinds_per_name.get(normalized_name, 0) + 1
+        rows = []
+        for normalized_name, product in sorted(products.items()):
+            rows.extend(self.rows(normalized_name, product))
+        return rows
 
-        items = []
-        for (normalized_name, measure), group in sorted(groups.items()):
-            amount, unit = self.display(measure, group["amount"], group["unit"])
-            items.append(
+    def metric(self, ingredient):
+        amount, unit = ingredient["metric_amount"], ingredient["metric_unit"]
+        if amount is not None and unit in MASS:
+            return "mass", amount * MASS[unit]
+        if amount is not None and unit in VOLUME:
+            return "volume", amount * VOLUME[unit]
+        return None
+
+    def rows(self, normalized_name, product):
+        households, metrics = {}, {}
+        without_household = without_metric = 0
+        for household, metric in product["contributions"]:
+            if household:
+                amount, unit = household
+                group = households.setdefault(unit.casefold(), [unit, 0])
+                group[1] += amount
+            else:
+                without_household += 1
+            if metric:
+                dimension, base = metric
+                metrics[dimension] = metrics.get(dimension, 0) + base
+            else:
+                without_metric += 1
+
+        household_groups = sorted(households.items())
+        metric_groups = sorted(metrics.items())
+        row_count = max(len(household_groups), len(metric_groups), 1)
+        # A sum is partial when some contribution lacks a measure that others have.
+        partial = row_count > 1 or bool(
+            (household_groups and without_household) or (metric_groups and without_metric)
+        )
+
+        rows = []
+        for index in range(row_count):
+            unit_key, (unit, amount) = household_groups[index] if index < len(household_groups) else ("", ("", None))
+            dimension, base = metric_groups[index] if index < len(metric_groups) else ("", None)
+            rows.append(
                 {
-                    "key": f"{normalized_name}|{measure}",
-                    "name": group["name"],
+                    "key": f"{normalized_name}|{unit_key}|{dimension}",
+                    "name": product["name"],
                     "amount": amount,
                     "unit": unit,
-                    "partial": kinds_per_name[normalized_name] > 1,
-                    "sources": group["sources"],
+                    "dimension": dimension,
+                    "metric_base": base,
+                    "partial": partial,
                 }
             )
-        return items
+        return rows
 
-    def measure(self, ingredient):
-        metric_amount = ingredient["metric_amount"]
-        metric_unit = ingredient["metric_unit"]
-        if metric_amount is not None and metric_unit in MASS:
-            return "mass", metric_amount * MASS[metric_unit], "g"
-        if metric_amount is not None and metric_unit in VOLUME:
-            return "volume", metric_amount * VOLUME[metric_unit], "ml"
-        if ingredient["amount"] is not None:
-            unit = ingredient["unit"].strip()
-            return f"home:{unit.casefold()}", ingredient["amount"], unit
-        return "none", None, ""
-
-    def display(self, measure, amount, unit):
-        if amount is None:
-            return None, unit
-        # Round the finished sum, not the parts, so rounding errors do not pile up.
-        if measure == "mass" and amount >= 1000:
-            return round(amount / 1000, 2), "kg"
-        if measure == "volume" and amount >= 1000:
-            return round(amount / 1000, 2), "l"
-        return round(amount, 2), unit
+    def present(self, row, extra_amount=0, extra_metric=0):
+        """What the list shows for a computed row plus the user's manual increase."""
+        amount = None if row["amount"] is None else round(row["amount"] + extra_amount, 2)
+        base = None if row["metric_base"] is None else row["metric_base"] + extra_metric
+        metric_amount, metric_unit = format_metric(row["dimension"], base)
+        return {
+            "name": row["name"],
+            "key": row["key"],
+            "amount": amount,
+            "unit": row["unit"],
+            "metric_amount": metric_amount,
+            "metric_unit": metric_unit,
+            "partial": row["partial"],
+        }
