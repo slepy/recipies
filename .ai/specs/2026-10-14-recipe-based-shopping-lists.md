@@ -48,7 +48,7 @@ Zalogowany użytkownik może tworzyć nazwane „Zestawy przepisów”, wybiera�
 - Tworzenie, nazywanie, edycja składu i usuwanie wielu prywatnych zestawów przepisów.
 - Wybór istniejących przepisów z listy oraz dodawanie ich z widoku szczegółów przepisu do zestawu.
 - Jedna zapisywana lista zakupów na zestaw, zawierająca składniki wyliczone z jego przepisów.
-- Sumowanie ilości składników o tej samej nazwie i jednostce, bez automatycznego przeliczania jednostek ani łączenia podobnych nazw.
+- Sumowanie ilości składników o tej samej nazwie: osobno ilości „domowych” (`amount` + `unit`, w tej samej jednostce) i osobno miar metrycznych (`metric_amount` + `metric_unit`: `g`, `kg`, `ml`, `l`), bez przeliczania między wymiarami (masa, objętość, miara domowa) ani łączenia podobnych nazw.
 - Dodawanie własnych pozycji oraz trwałe oznaczanie składników jako kupionych lub ponownie niekupionych.
 - Oddzielna prezentacja aktywnych i kupionych pozycji; kupione są pokazane pod aktywnymi w wizualnie odmiennym stylu, np. przekreślone.
 - Ochrona zestawów i list przez uwierzytelnienie oraz kontrolę właściciela.
@@ -76,7 +76,8 @@ Zalogowany użytkownik może tworzyć nazwane „Zestawy przepisów”, wybiera�
   - **AC-007:** Po zapisie ponowne otwarcie zestawu pokazuje zapisany wybór, niezależnie od tego, z którego widoku przepisy zostały dodane.
 - **FR-003:** System tworzy i utrzymuje listę zakupów powiązaną z zestawem.
   - **AC-008:** Dla każdego składnika wybranego przepisu system tworzy pozycję zakupową. Składniki bez podanej ilości lub jednostki nadal pojawiają się na liście.
-  - **AC-009:** Pozycje o tej samej nazwie i jednostce są łączone, a ich ilości sumowane, gdy obie ilości można dodać liczbowo. Jednostki ani podobne nazwy nie są automatycznie normalizowane; pozycje z nieznaną lub nienumeryczną ilością pozostają osobne.
+  - **AC-009:** Składnik przepisu może mieć miarę domową (`amount` + `unit`), miarę metryczną (`metric_amount` + `metric_unit`) albo obie. Pozycje o tej samej nazwie są łączone, a każda miara sumowana osobno: ilości domowe w tej samej jednostce, miary metryczne w obrębie wymiaru (`g` i `kg` razem, `ml` i `l` razem; `0,5 l + 250 ml = 750 ml`). Nie ma przeliczania między wymiarami (np. `ml` na `g`, sztuki na gramy) ani łączenia podobnych nazw; pozycje z nieznaną lub nienumeryczną ilością pozostają osobne.
+  - **AC-009a:** Każdy przepis wnosi do sumy tylko miary, które ma. Jeśli którykolwiek przepis nie ma wybranej miary dla produktu, suma jest oznaczona jako niepełna i pokazuje brakującą część (np. `112 g + 2 szt bez gramatury`). Miarą domyślną jest ta, którą mają wszystkie przepisy; użytkownik może per pozycja przełączyć widok między miarą domową a metryczną.
   - **AC-010:** Lista jest przypisana do jednego zestawu; różne zestawy mają niezależne listy, nawet jeśli zawierają te same przepisy.
 - **FR-004:** System przelicza składniki przepisowe po zapisaniu zmian składu zestawu.
   - **AC-011:** Po dodaniu lub usunięciu przepisu i zapisaniu zestawu, po ponownym otwarciu listy widoczne są składniki odpowiadające aktualnemu składowi zestawu; składniki pochodzące wyłącznie z usuniętego przepisu znikają.
@@ -195,7 +196,7 @@ To wstępna ocena zastosowania i potrzebnych dowodów, nie porada prawna ani pot
 
 | Ryzyko | Prawdopodobieństwo/wpływ | Ograniczenie lub decyzja | Właściciel |
 | --- | --- | --- | --- |
-| Różne nazwy lub jednostki tego samego produktu nie zostaną połączone, a suma może wymagać ręcznej interpretacji | Wysokie / niskie | Łączyć wyłącznie zgodne nazwy i jednostki; nie zgadywać konwersji | Właściciel produktu |
+| Różne nazwy lub jednostki tego samego produktu nie zostaną połączone, a suma może wymagać ręcznej interpretacji | Wysokie / niskie | Łączyć wyłącznie zgodne nazwy; konwertować tylko `g`↔`kg` i `ml`↔`l`; niepełne sumy oznaczać wprost; nie zgadywać innych konwersji | Właściciel produktu |
 | Przeliczenie może utracić stan kupienia, jeśli składnik przestanie pasować po zmianie składu zestawu | Średnie / średni | Zachować stan dla nadal występujących pozycji; pokryć testami; pozycje usuniętego przepisu usuwać zgodnie z decyzją użytkownika | Osoba techniczna |
 | Zmiana lub usunięcie przepisu może pozostawić wcześniej wyliczoną listę nieaktualną | Nieznane / średni | Synchronizacja zmian samych przepisów jest poza zakresem; uzgodnić razem z przyszłą specyfikacją edycji przepisów | Właściciel produktu |
 
