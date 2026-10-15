@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     "authentication.apps.AuthenticationConfig",
     "integrations.apps.IntegrationsConfig",
     "recipes.apps.RecipesConfig",
+    "meal_plans.apps.MealPlansConfig",
+    "shopping_lists.apps.ShoppingListsConfig",
 ]
 
 MIDDLEWARE = [
