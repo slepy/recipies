@@ -51,10 +51,10 @@ class PlanPeriodApiTests(TestCase):
         response = self.client.patch(self.url, {"end_date": "2026-11-03"}, format="json")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(Meal.objects.count(), 6)
+        self.assertEqual(Meal.objects.count(), 2)
 
     def test_renames_plan_without_touching_meals(self):
         response = self.client.patch(self.url, {"name": "Nowa nazwa"}, format="json")
 
         self.assertEqual(response.data["name"], "Nowa nazwa")
-        self.assertEqual(Meal.objects.count(), 9)
+        self.assertEqual(Meal.objects.count(), 3)

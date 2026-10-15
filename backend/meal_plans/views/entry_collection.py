@@ -25,7 +25,7 @@ class EntryCollectionView(APIView):
             recipe = serializer.validated_data["recipe"]
             servings = serializer.validated_data.get("servings") or serializer.default_servings(recipe)
             if meal.entries.count() >= MAX_ENTRIES_PER_MEAL:
-                raise ValidationError({"detail": f"Posiłek może mieć najwyżej {MAX_ENTRIES_PER_MEAL} wpisów."})
+                raise ValidationError({"detail": "Posiłek ma już przepis. Zmień go albo dodaj kolejny posiłek."})
             last_position = meal.entries.aggregate(last=Max("position"))["last"]
             entry = MealEntry.objects.create(
                 meal=meal,

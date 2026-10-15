@@ -19,11 +19,11 @@ class MealApiTests(TestCase):
         return self.client.post(self.meals_url, {"date": date}, format="json")
 
     def test_plus_adds_a_meal_to_that_day_only_up_to_six(self):
-        names = [self.add_meal().data["name"] for _ in range(3)]
+        names = [self.add_meal().data["name"] for _ in range(5)]
 
-        self.assertEqual(names, ["Drugie śniadanie", "Podwieczorek", "Przekąska"])
+        self.assertEqual(names, ["Posiłek 2", "Posiłek 3", "Posiłek 4", "Posiłek 5", "Posiłek 6"])
         self.assertEqual(Meal.objects.filter(date="2026-11-02").count(), 6)
-        self.assertEqual(Meal.objects.filter(date="2026-11-03").count(), 3)
+        self.assertEqual(Meal.objects.filter(date="2026-11-03").count(), 1)
         self.assertEqual(self.add_meal().status_code, 400)
 
     def test_rejects_a_day_outside_the_plan(self):

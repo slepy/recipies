@@ -41,7 +41,7 @@ class ShoppingListCreationApiTests(TestCase):
 
     def test_skips_unchecked_entries(self):
         kept = add_entry(self.client, self.plan_id, self.first_day[0], self.recipe)
-        skipped = add_entry(self.client, self.plan_id, self.first_day[1], create_recipe(self.user, title="Zupa", ingredients=[
+        skipped = add_entry(self.client, self.plan_id, self.second_day[0], create_recipe(self.user, title="Zupa", ingredients=[
             {"name": "marchew", "amount": "3", "unit": "szt", "metric_amount": None, "metric_unit": ""}
         ]))
 

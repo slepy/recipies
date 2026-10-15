@@ -49,9 +49,9 @@ function basePlan(): Plan {
     days: [
       {
         date: "2026-11-02",
-        meals: [meal(1, "Śniadanie", "2026-11-02"), meal(2, "Obiad", "2026-11-02", [pasta, soup]), meal(3, "Kolacja", "2026-11-02")],
+        meals: [meal(1, "Posiłek 1", "2026-11-02", [pasta]), meal(2, "Posiłek 2", "2026-11-02", [soup], false)],
       },
-      { date: "2026-11-03", meals: [meal(4, "Śniadanie", "2026-11-03"), meal(5, "Obiad", "2026-11-03"), meal(6, "Kolacja", "2026-11-03")] },
+      { date: "2026-11-03", meals: [meal(4, "Posiłek 1", "2026-11-03")] },
     ],
   }
 }
@@ -81,7 +81,7 @@ describe("meal plan view", () => {
   it("shows days with meals, entries and scaled ingredients", async () => {
     renderView()
 
-    const lunch = (await screen.findAllByRole("region", { name: "Obiad" }))[0]
+    const lunch = (await screen.findAllByRole("region", { name: "Posiłek 1" }))[0]
 
     expect(within(lunch).getByText("Spaghetti")).toBeInTheDocument()
     expect(within(lunch).getByLabelText("Porcje: Spaghetti")).toHaveValue(4)
@@ -92,25 +92,23 @@ describe("meal plan view", () => {
   it("adds a recipe to a meal and reloads the plan", async () => {
     vi.mocked(addEntry).mockResolvedValue(pasta)
     renderView()
-    const dinner = (await screen.findAllByRole("region", { name: "Kolacja" }))[0]
+    const dinner = (await screen.findAllByRole("region", { name: "Posiłek 1" }))[1]
 
-    await userEvent.click(within(dinner).getByRole("button", { name: "Dodaj przepis do: Kolacja" }))
+    await userEvent.click(within(dinner).getByRole("button", { name: "Dodaj przepis do: Posiłek 1" }))
     await userEvent.type(within(dinner).getByLabelText("Szukaj przepisu"), "zup")
     await userEvent.click(within(dinner).getByRole("button", { name: "Dodaj: Zupa" }))
 
-    expect(addEntry).toHaveBeenCalledWith("token", 3, 3, 6, undefined)
+    expect(addEntry).toHaveBeenCalledWith("token", 3, 4, 6, undefined)
     expect(getPlan).toHaveBeenCalledTimes(2)
   })
 
   it("adds a meal to one day and disables the plus at six meals", async () => {
     const plan = basePlan()
     plan.days[1].meals.push(
-      meal(7, "Drugie śniadanie", "2026-11-03", [], false),
-      meal(8, "Podwieczorek", "2026-11-03", [], false),
-      meal(9, "Przekąska", "2026-11-03", [], false),
+      ...[2, 3, 4, 5, 6].map((number) => meal(10 + number, `Posiłek ${number}`, "2026-11-03", [], false)),
     )
     vi.mocked(getPlan).mockResolvedValue(plan)
-    vi.mocked(addMeal).mockResolvedValue(meal(10, "Drugie śniadanie", "2026-11-02", [], false))
+    vi.mocked(addMeal).mockResolvedValue(meal(20, "Posiłek 2", "2026-11-02", [], false))
     renderView()
 
     const firstDay = await screen.findByRole("button", { name: /Dodaj posiłek do dnia: poniedziałek/ })
@@ -124,16 +122,15 @@ describe("meal plan view", () => {
 
   it("asks before removing an added meal that has entries", async () => {
     const plan = basePlan()
-    plan.days[0].meals.push(meal(7, "Przekąska", "2026-11-02", [soup], false))
     vi.mocked(getPlan).mockResolvedValue(plan)
     vi.mocked(deleteMeal).mockResolvedValue(undefined)
     renderView()
 
-    await userEvent.click(await screen.findByRole("button", { name: "Usuń posiłek: Przekąska" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Usuń posiłek: Posiłek 2" }))
     expect(deleteMeal).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole("button", { name: "Usuń posiłek" }))
 
-    expect(deleteMeal).toHaveBeenCalledWith("token", 3, 7, true)
+    expect(deleteMeal).toHaveBeenCalledWith("token", 3, 2, true)
   })
 
   it("asks for confirmation before a shortened period removes entries", async () => {

@@ -148,7 +148,7 @@ export default function MealSection({
         ))}
       </ul>
 
-      {isPicking ? (
+      {meal.entries.length > 0 ? null : isPicking ? (
         <RecipePicker
           isBusy={isBusy}
           mealName={meal.name}

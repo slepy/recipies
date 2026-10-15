@@ -29,11 +29,14 @@ class MealEntryApiTests(TestCase):
 
         self.assertEqual(self.client.post(self.url, {"recipe": recipe.pk}, format="json").data["servings"], 1)
 
-    def test_the_same_recipe_can_be_added_many_times(self):
+    def test_the_same_recipe_can_be_used_in_many_meals(self):
         recipe = create_recipe(self.user)
+        second_meal = self.client.post(
+            f"/api/meal-plans/{self.plan_id}/meals/", {"date": "2026-11-02"}, format="json"
+        ).data
 
-        for _ in range(2):
-            self.client.post(self.url, {"recipe": recipe.pk, "servings": 3}, format="json")
+        self.client.post(self.url, {"recipe": recipe.pk, "servings": 3}, format="json")
+        self.client.post(f"{self.url[: self.url.index('meals/') + 6]}{second_meal['id']}/entries/", {"recipe": recipe.pk}, format="json")
 
         self.assertEqual(MealEntry.objects.filter(recipe=recipe).count(), 2)
 
@@ -53,12 +56,14 @@ class MealEntryApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(MealEntry.objects.count(), 0)
 
-    def test_limits_entries_per_meal(self):
+    def test_a_meal_holds_one_recipe(self):
         recipe = create_recipe(self.user)
-        for _ in range(20):
-            MealEntry.objects.create(meal=self.meal, recipe=recipe, servings=1)
+        self.client.post(self.url, {"recipe": recipe.pk, "servings": 4}, format="json")
 
-        self.assertEqual(self.client.post(self.url, {"recipe": recipe.pk}, format="json").status_code, 400)
+        response = self.client.post(self.url, {"recipe": recipe.pk}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(MealEntry.objects.filter(meal=self.meal).count(), 1)
 
     def test_plan_shows_ingredients_scaled_to_the_entry_servings(self):
         recipe = create_recipe(self.user, servings=2)

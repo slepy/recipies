@@ -20,7 +20,7 @@ class PlanCollectionApiTests(TestCase):
         self.assertEqual(anonymous.get("/api/meal-plans/").status_code, 401)
         self.assertEqual(anonymous.post("/api/meal-plans/", {}, format="json").status_code, 401)
 
-    def test_creates_plan_with_three_default_meals_per_day(self):
+    def test_creates_plan_with_one_default_meal_per_day(self):
         response = self.create_plan()
 
         self.assertEqual(response.status_code, 201)
@@ -29,9 +29,9 @@ class PlanCollectionApiTests(TestCase):
         self.assertEqual(len(response.data["days"]), 7)
         self.assertEqual(
             [meal["name"] for meal in response.data["days"][0]["meals"]],
-            ["Śniadanie", "Obiad", "Kolacja"],
+            ["Posiłek 1"],
         )
-        self.assertEqual(plan.meals.count(), 21)
+        self.assertEqual(plan.meals.count(), 7)
 
     def test_rejects_invalid_plan_fields_next_to_the_field(self):
         self.assertIn("name", self.create_plan(name="   ").data)
