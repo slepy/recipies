@@ -101,12 +101,12 @@ function ItemRow({ item, isBusy, onToggle, onDelete, onIncrease, onResetIncrease
       {missing.length > 0 && <small>Ilość zmieniona od zakupu: dokup {missing.join(" i ")}</small>}
       {canIncrease && !isIncreasing && (
         <button className="text-button" disabled={isBusy} onClick={() => setIsIncreasing(true)} type="button">
-          Zwiększ ilość: {item.name}
+          Zwiększ<span className="visually-hidden"> ilość: {item.name}</span>
         </button>
       )}
       {hasIncrease && (
-        <button className="text-button" disabled={isBusy} onClick={onResetIncrease} type="button">
-          Cofnij zwiększenie: {item.name}
+        <button aria-label={`Cofnij zwiększenie: ${item.name}`} className="text-button" disabled={isBusy} onClick={onResetIncrease} type="button">
+          Cofnij zwiększenie
         </button>
       )}
       {isIncreasing && (
@@ -139,8 +139,8 @@ function ItemRow({ item, isBusy, onToggle, onDelete, onIncrease, onResetIncrease
         </form>
       )}
       {item.origin === "custom" && (
-        <button className="text-button" disabled={isBusy} onClick={onDelete} type="button">
-          Usuń pozycję: {item.name}
+        <button className="text-button text-button--danger" disabled={isBusy} onClick={onDelete} type="button">
+          Usuń<span className="visually-hidden"> pozycję: {item.name}</span>
         </button>
       )}
     </li>

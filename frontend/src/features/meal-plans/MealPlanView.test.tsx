@@ -60,11 +60,8 @@ function renderView(callbacks: { onOpenList?: () => void; onBack?: () => void } 
   render(
     <MealPlanView
       accessToken="token"
-      accountEmail="cook@example.com"
-      headerLinks={[]}
       onBack={callbacks.onBack ?? vi.fn()}
       onOpenList={callbacks.onOpenList ?? vi.fn()}
-      onSignOut={vi.fn()}
       planId={3}
     />,
   )

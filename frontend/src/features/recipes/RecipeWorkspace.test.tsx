@@ -35,10 +35,7 @@ function renderWorkspace() {
   return render(
     <RecipeWorkspace
       accessToken="memory-access-token"
-      accountEmail="cook@example.com"
-      accountError=""
       onOpenIntegrations={vi.fn()}
-      onSignOut={vi.fn()}
     />,
   )
 }
@@ -59,10 +56,7 @@ describe("recipe workspace", () => {
     render(
       <RecipeWorkspace
         accessToken="memory-access-token"
-        accountEmail="cook@example.com"
-        accountError=""
         onOpenIntegrations={vi.fn()}
-        onSignOut={vi.fn()}
         renderRecipeActions={(recipe) => <button type="button">Dodaj do zestawu: {recipe.title}</button>}
       />,
     )
@@ -437,10 +431,7 @@ describe("recipe workspace", () => {
     render(
       <RecipeWorkspace
         accessToken="memory-access-token"
-        accountEmail="cook@example.com"
-        accountError=""
         onOpenIntegrations={onOpenIntegrations}
-        onSignOut={vi.fn()}
       />,
     )
 

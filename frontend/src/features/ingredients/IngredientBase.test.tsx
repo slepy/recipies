@@ -31,7 +31,7 @@ function page(results: UnitWeight[], next: string | null = null): UnitWeightPage
 }
 
 function renderBase() {
-  render(<IngredientBase accessToken="token" accountEmail="cook@example.com" headerLinks={[]} onSignOut={vi.fn()} />)
+  render(<IngredientBase accessToken="token" />)
 }
 
 describe("ingredient knowledge base", () => {

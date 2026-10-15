@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useState } from "react"
-import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router"
+import { useEffect, useState } from "react"
+import { Navigate, useLocation, useNavigate } from "react-router"
 
+import AuthenticatedApp from "./app/AuthenticatedApp"
 import {
   Account,
   getCurrentUser,
@@ -9,63 +10,9 @@ import {
   refreshAccessToken,
   register,
 } from "./features/accounts/api"
-import IngredientBase from "./features/ingredients/IngredientBase"
-import IntegrationSettings from "./features/integrations/IntegrationSettings"
-import MealPlanList from "./features/meal-plans/MealPlanList"
-import MealPlanView from "./features/meal-plans/MealPlanView"
-import AddToRecipeSet from "./features/recipe-sets/AddToRecipeSet"
-import RecipeSetList from "./features/recipe-sets/RecipeSetList"
-import RecipeSetView from "./features/recipe-sets/RecipeSetView"
-import RecipeWorkspace from "./features/recipes/RecipeWorkspace"
-import ShoppingListView from "./features/shopping-lists/ShoppingListView"
-import { HeaderLink } from "./shared/ui/PageHeader"
+import AuthScreen from "./features/accounts/AuthScreen"
 
 type AuthState = "loading" | "anonymous" | "authenticated"
-
-const foodImage =
-  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1800&q=85"
-
-type PlanScreenProps = {
-  accessToken: string
-  accountEmail: string
-  headerLinks: HeaderLink[]
-  onSignOut: () => void
-}
-
-function PlanRoute(props: PlanScreenProps) {
-  const navigate = useNavigate()
-  const planId = Number(useParams().planId)
-  if (!Number.isInteger(planId)) return <Navigate to="/plans" replace />
-  return (
-    <MealPlanView
-      {...props}
-      onBack={() => navigate("/plans")}
-      onOpenList={(listId) => navigate(`/lists/${listId}`)}
-      planId={planId}
-    />
-  )
-}
-
-function ListRoute(props: PlanScreenProps) {
-  const navigate = useNavigate()
-  const listId = Number(useParams().listId)
-  if (!Number.isInteger(listId)) return <Navigate to="/plans" replace />
-  return (
-    <ShoppingListView
-      {...props}
-      listId={listId}
-      onBack={() => navigate("/plans")}
-      onBackToPlan={(planId) => navigate(`/plans/${planId}`)}
-    />
-  )
-}
-
-function RecipeSetRoute(props: PlanScreenProps) {
-  const navigate = useNavigate()
-  const setId = Number(useParams().setId)
-  if (!Number.isInteger(setId)) return <Navigate to="/sets" replace />
-  return <RecipeSetView {...props} onBack={() => navigate("/sets")} setId={setId} />
-}
 
 export default function App() {
   const navigate = useNavigate()
@@ -74,14 +21,7 @@ export default function App() {
   const [authState, setAuthState] = useState<AuthState>("loading")
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  useEffect(() => {
-    setError("")
-  }, [mode])
+  const [signOutError, setSignOutError] = useState("")
 
   useEffect(() => {
     let isCurrent = true
@@ -134,92 +74,37 @@ export default function App() {
     }
   }, [accessToken])
 
-  async function submitForm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError("")
-    setIsSubmitting(true)
-
-    try {
-      const token = mode === "register" ? await register(email, password) : await logIn(email, password)
-      const currentAccount = await getCurrentUser(token)
-      setAccessToken(token)
-      setAccount(currentAccount)
-      setAuthState("authenticated")
-    } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : "Nie udało się zalogować.")
-    } finally {
-      setIsSubmitting(false)
-    }
+  async function authenticate(email: string, password: string) {
+    const token = mode === "register" ? await register(email, password) : await logIn(email, password)
+    const currentAccount = await getCurrentUser(token)
+    setAccessToken(token)
+    setAccount(currentAccount)
+    setSignOutError("")
+    setAuthState("authenticated")
   }
 
   async function signOut() {
-    setError("")
+    setSignOutError("")
     try {
       await logOut()
       setAccessToken(null)
       setAccount(null)
       setAuthState("anonymous")
     } catch {
-      setError("Nie udało się zakończyć sesji. Spróbuj ponownie.")
+      setSignOutError("Nie udało się zakończyć sesji. Spróbuj ponownie.")
     }
   }
 
   if (authState === "authenticated" && account && accessToken) {
-    const screenProps: PlanScreenProps = {
-      accessToken,
-      accountEmail: account.email,
-      headerLinks: [
-        { label: "Przepisy", onClick: () => navigate("/recipes") },
-        { label: "Plany żywieniowe", onClick: () => navigate("/plans") },
-        { label: "Zestawy przepisów", onClick: () => navigate("/sets") },
-        { label: "Baza składników", onClick: () => navigate("/ingredients") },
-        { label: "Integracje AI", onClick: () => navigate("/settings/integrations") },
-      ],
-      onSignOut: signOut,
-    }
-
+    // Signing in from the login or registration screen lands on the dashboard.
+    if (pathname === "/login" || pathname === "/register") return <Navigate to="/" replace />
     return (
-      <Routes>
-        <Route
-          path="/recipes"
-          element={
-            <RecipeWorkspace
-              accessToken={accessToken}
-              accountEmail={account.email}
-              accountError={error}
-              onOpenIngredients={() => navigate("/ingredients")}
-              onOpenIntegrations={() => navigate("/settings/integrations")}
-              onOpenPlans={() => navigate("/plans")}
-              onOpenRecipeSets={() => navigate("/sets")}
-              onSignOut={signOut}
-              renderRecipeActions={(recipe) => (
-                <AddToRecipeSet accessToken={accessToken} recipeId={recipe.id} recipeTitle={recipe.title} />
-              )}
-            />
-          }
-        />
-        <Route
-          path="/plans"
-          element={<MealPlanList {...screenProps} onOpenPlan={(planId) => navigate(`/plans/${planId}`)} />}
-        />
-        <Route path="/plans/:planId" element={<PlanRoute {...screenProps} />} />
-        <Route path="/lists/:listId" element={<ListRoute {...screenProps} />} />
-        <Route path="/ingredients" element={<IngredientBase {...screenProps} />} />
-        <Route
-          path="/sets"
-          element={<RecipeSetList {...screenProps} onOpenSet={(setId) => navigate(`/sets/${setId}`)} />}
-        />
-        <Route path="/sets/:setId" element={<RecipeSetRoute {...screenProps} />} />
-        <Route
-          path="/settings/integrations"
-          element={
-            <main className="recipe-app integration-page">
-              <IntegrationSettings accessToken={accessToken} onBack={() => navigate("/recipes")} />
-            </main>
-          }
-        />
-        <Route path="*" element={<Navigate to="/recipes" replace />} />
-      </Routes>
+      <AuthenticatedApp
+        accessToken={accessToken}
+        accountEmail={account.email}
+        accountError={signOutError}
+        onSignOut={signOut}
+      />
     )
   }
 
@@ -228,87 +113,11 @@ export default function App() {
   }
 
   return (
-    <main className="auth-layout">
-      <section className="food-panel" aria-label="Miska, przepisy na co dzień">
-        <img className="food-panel__image" src={foodImage} alt="Kolorowa sałatka ze świeżych warzyw" />
-        <div className="food-panel__shade" />
-        <a className="wordmark wordmark--light" href="/" aria-label="Miska, strona główna">
-          miska<span>.</span>
-        </a>
-        <div className="food-panel__caption">
-          <span className="eyebrow">DOBRZE BYĆ U SIEBIE</span>
-          <p>Codzienne gotowanie zaczyna się od dobrego pomysłu.</p>
-        </div>
-        <p className="food-panel__credit">PRZEPISY I LISTY ZAKUPÓW W JEDNYM MIEJSCU</p>
-      </section>
-
-      <section className="form-panel">
-        <a className="wordmark wordmark--dark" href="/" aria-label="Miska, strona główna">
-          miska<span>.</span>
-        </a>
-
-        {authState === "loading" ? (
-          <p className="session-message" role="status">Sprawdzam sesję...</p>
-        ) : (
-          <div className="form-content">
-            <span className="eyebrow">{mode === "login" ? "WRÓĆ DO SWOJEJ KUCHNI" : "ZACZNIJ OD DOBREGO SMAKU"}</span>
-            <h1>{mode === "login" ? "Zaloguj się" : "Utwórz konto"}</h1>
-            <p className="form-intro">
-              {mode === "login"
-                ? "Zapisane przepisy już na Ciebie czekają."
-                : "Zachowaj przepisy i miej zakupy pod ręką."}
-            </p>
-
-            <form className="auth-form" onSubmit={submitForm}>
-              <label className="field" htmlFor="email">
-                <span>Adres e-mail</span>
-                <input
-                  autoComplete="email"
-                  id="email"
-                  name="email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  type="email"
-                  value={email}
-                />
-              </label>
-              <label className="field" htmlFor="password">
-                <span>Hasło</span>
-                <input
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  id="password"
-                  minLength={mode === "register" ? 12 : undefined}
-                  name="password"
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  type="password"
-                  value={password}
-                />
-                {mode === "register" && <small>Co najmniej 12 znaków</small>}
-              </label>
-              {error && <p className="form-error" role="alert">{error}</p>}
-              <button className="primary-button" disabled={isSubmitting} type="submit">
-                {isSubmitting ? "Chwila..." : mode === "login" ? "Zaloguj się" : "Utwórz konto"}
-              </button>
-            </form>
-
-            <p className="mode-switch">
-              {mode === "login" ? "Nie masz jeszcze konta?" : "Masz już konto?"}{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  navigate(mode === "login" ? "/register" : "/login")
-                }}
-              >
-                {mode === "login" ? "Utwórz konto" : "Zaloguj się"}
-              </button>
-            </p>
-            <p className="privacy-note">Twoje konto jest prywatne. Nie udostępniamy Twoich danych.</p>
-          </div>
-        )}
-
-        <footer className="form-footer">MISKA · DOBRZE ZAPLANOWANE GOTOWANIE</footer>
-      </section>
-    </main>
+    <AuthScreen
+      isLoading={authState === "loading"}
+      mode={mode}
+      onSubmit={authenticate}
+      onSwitchMode={() => navigate(mode === "login" ? "/register" : "/login")}
+    />
   )
 }

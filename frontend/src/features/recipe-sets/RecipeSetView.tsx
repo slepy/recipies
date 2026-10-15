@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useState } from "react"
 
 import { ApiError } from "../../shared/api/client"
 import ConfirmBar from "../../shared/ui/ConfirmBar"
-import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
 import { getRecipes, Recipe } from "../recipes/api"
 import { getShoppingList, ShoppingList } from "../shopping-lists/api"
 import ShoppingListItems from "../shopping-lists/ShoppingListItems"
@@ -11,13 +10,12 @@ import { deleteRecipeSet, getRecipeSet, RecipeSet, updateRecipeSet } from "./api
 type RecipeSetViewProps = {
   accessToken: string
   setId: number
-  accountEmail: string
-  headerLinks: HeaderLink[]
-  onSignOut: () => void
+  // The shopping lists overview opens a set straight on its list.
+  initialTab?: Tab
   onBack: () => void
 }
 
-type Tab = "recipes" | "list"
+export type Tab = "recipes" | "list"
 
 function sameIds(left: number[], right: number[]) {
   const sortedLeft = [...left].sort((a, b) => a - b)
@@ -25,10 +23,10 @@ function sameIds(left: number[], right: number[]) {
   return sortedLeft.length === sortedRight.length && sortedLeft.every((id, index) => id === sortedRight[index])
 }
 
-export default function RecipeSetView({ accessToken, setId, accountEmail, headerLinks, onSignOut, onBack }: RecipeSetViewProps) {
+export default function RecipeSetView({ accessToken, setId, initialTab = "recipes", onBack }: RecipeSetViewProps) {
   const [recipeSet, setRecipeSet] = useState<RecipeSet | null>(null)
   const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [tab, setTab] = useState<Tab>("recipes")
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [name, setName] = useState("")
   const [chosenIds, setChosenIds] = useState<number[]>([])
   const [query, setQuery] = useState("")
@@ -125,137 +123,137 @@ export default function RecipeSetView({ accessToken, setId, accountEmail, header
   }
 
   return (
-    <main className="recipe-app">
-      <PageHeader accountEmail={accountEmail} links={headerLinks} onSignOut={onSignOut} />
-      <div className="recipe-home plan-page">
-        <button className="text-button recipe-back" onClick={onBack} type="button">
-          ← Zestawy przepisów
-        </button>
-        {!recipeSet && !error && <p role="status">Wczytuję zestaw...</p>}
-        {error && <p className="form-error" role="alert">{error}</p>}
+    <div className="page">
+      <button className="text-button recipe-back" onClick={onBack} type="button">
+        ← Zestawy przepisów
+      </button>
+      {!recipeSet && !error && <p role="status">Wczytuję zestaw...</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
 
-        {recipeSet && (
-          <>
-            <header className="plan-heading">
+      {recipeSet && (
+        <>
+          <header className="page-header plan-heading">
+            <div>
+              <span className="eyebrow">ZESTAW PRZEPISÓW</span>
               <h1>{recipeSet.name}</h1>
-              <div className="plan-heading__actions">
-                <button className="text-button" onClick={() => setIsConfirmingDelete(true)} type="button">
-                  Usuń zestaw
-                </button>
-              </div>
-            </header>
-
-            {isConfirmingDelete && (
-              <ConfirmBar
-                confirmLabel="Usuń zestaw"
-                isBusy={isBusy}
-                onCancel={() => setIsConfirmingDelete(false)}
-                onConfirm={() => void removeSet()}
-                title="Usunąć zestaw przepisów?"
-              >
-                <p>Zestaw zostanie usunięty razem z listą zakupów i jej własnymi pozycjami. Przepisy pozostaną bez zmian.</p>
-              </ConfirmBar>
-            )}
-
-            <div className="tabs" role="tablist" aria-label="Widok zestawu">
-              <button
-                aria-controls="set-panel-recipes"
-                aria-selected={tab === "recipes"}
-                className="tabs__tab"
-                id="set-tab-recipes"
-                onClick={() => setTab("recipes")}
-                role="tab"
-                type="button"
-              >
-                Przepisy ({recipeSet.recipes.length})
-              </button>
-              <button
-                aria-controls="set-panel-list"
-                aria-selected={tab === "list"}
-                className="tabs__tab"
-                id="set-tab-list"
-                onClick={() => setTab("list")}
-                role="tab"
-                type="button"
-              >
-                Lista zakupów
+            </div>
+            <div className="plan-heading__actions">
+              <button className="text-button text-button--danger" onClick={() => setIsConfirmingDelete(true)} type="button">
+                Usuń zestaw
               </button>
             </div>
+          </header>
 
-            {tab === "recipes" && (
-              <section aria-labelledby="set-tab-recipes" id="set-panel-recipes" role="tabpanel">
-                <form className="plan-form plan-card" onSubmit={(event) => void save(event)} noValidate aria-label="Edycja zestawu">
-                  <label className="field" htmlFor="set-edit-name">
-                    <span>Nazwa zestawu</span>
-                    <input
-                      aria-invalid={nameError ? true : undefined}
-                      id="set-edit-name"
-                      maxLength={200}
-                      onChange={(event) => setName(event.target.value)}
-                      value={name}
-                    />
-                    {nameError && <small className="form-error" role="alert">{nameError}</small>}
+          {isConfirmingDelete && (
+            <ConfirmBar
+              confirmLabel="Usuń zestaw"
+              isBusy={isBusy}
+              onCancel={() => setIsConfirmingDelete(false)}
+              onConfirm={() => void removeSet()}
+              title="Usunąć zestaw przepisów?"
+            >
+              <p>Zestaw zostanie usunięty razem z listą zakupów i jej własnymi pozycjami. Przepisy pozostaną bez zmian.</p>
+            </ConfirmBar>
+          )}
+
+          <div className="tabs" role="tablist" aria-label="Widok zestawu">
+            <button
+              aria-controls="set-panel-recipes"
+              aria-selected={tab === "recipes"}
+              className="tabs__tab"
+              id="set-tab-recipes"
+              onClick={() => setTab("recipes")}
+              role="tab"
+              type="button"
+            >
+              Przepisy ({recipeSet.recipes.length})
+            </button>
+            <button
+              aria-controls="set-panel-list"
+              aria-selected={tab === "list"}
+              className="tabs__tab"
+              id="set-tab-list"
+              onClick={() => setTab("list")}
+              role="tab"
+              type="button"
+            >
+              Lista zakupów
+            </button>
+          </div>
+
+          {tab === "recipes" && (
+            <section aria-labelledby="set-tab-recipes" id="set-panel-recipes" role="tabpanel">
+              <form className="plan-form plan-card" onSubmit={(event) => void save(event)} noValidate aria-label="Edycja zestawu">
+                <label className="field" htmlFor="set-edit-name">
+                  <span>Nazwa zestawu</span>
+                  <input
+                    aria-invalid={nameError ? true : undefined}
+                    id="set-edit-name"
+                    maxLength={200}
+                    onChange={(event) => setName(event.target.value)}
+                    value={name}
+                  />
+                  {nameError && <small className="form-error" role="alert">{nameError}</small>}
+                </label>
+
+                <h2>Przepisy w zestawie ({chosen.length})</h2>
+                {chosen.length === 0 && <p>Zestaw nie ma jeszcze przepisów.</p>}
+                <ul className="list-items">
+                  {chosen.map((recipe) => (
+                    <li className="list-item" key={recipe.id}>
+                      <span>{recipe.title}</span>
+                      <button
+                        className="text-button text-button--danger"
+                        disabled={isBusy}
+                        onClick={() => setChosenIds((ids) => ids.filter((id) => id !== recipe.id))}
+                        type="button"
+                      >
+                        Usuń<span className="visually-hidden"> z zestawu: {recipe.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="recipe-picker" role="group" aria-label="Wybór przepisów">
+                  <label className="field">
+                    <span>Szukaj przepisu</span>
+                    <input onChange={(event) => setQuery(event.target.value)} value={query} />
                   </label>
-
-                  <h2>Przepisy w zestawie ({chosen.length})</h2>
-                  {chosen.length === 0 && <p>Zestaw nie ma jeszcze przepisów.</p>}
-                  <ul className="list-items">
-                    {chosen.map((recipe) => (
-                      <li className="list-item" key={recipe.id}>
-                        <span>{recipe.title}</span>
+                  {available.length === 0 && <p>Brak innych przepisów do dodania.</p>}
+                  <ul className="recipe-picker__list">
+                    {available.map((recipe) => (
+                      <li key={recipe.id}>
                         <button
-                          className="text-button"
+                          className="secondary-button"
                           disabled={isBusy}
-                          onClick={() => setChosenIds((ids) => ids.filter((id) => id !== recipe.id))}
+                          onClick={() => setChosenIds((ids) => (ids.includes(recipe.id) ? ids : [...ids, recipe.id]))}
                           type="button"
                         >
-                          Usuń z zestawu: {recipe.title}
+                          Dodaj: {recipe.title}
                         </button>
                       </li>
                     ))}
                   </ul>
+                </div>
 
-                  <div className="recipe-picker" role="group" aria-label="Wybór przepisów">
-                    <label className="field">
-                      <span>Szukaj przepisu</span>
-                      <input onChange={(event) => setQuery(event.target.value)} value={query} />
-                    </label>
-                    {available.length === 0 && <p>Brak innych przepisów do dodania.</p>}
-                    <ul className="recipe-picker__list">
-                      {available.map((recipe) => (
-                        <li key={recipe.id}>
-                          <button
-                            className="secondary-button"
-                            disabled={isBusy}
-                            onClick={() => setChosenIds((ids) => (ids.includes(recipe.id) ? ids : [...ids, recipe.id]))}
-                            type="button"
-                          >
-                            Dodaj: {recipe.title}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {isDirty && <p role="status">Masz niezapisane zmiany. Lista zakupów zmieni się po zapisaniu.</p>}
+                {notice && !isDirty && <p className="integration-status" role="status">{notice}</p>}
+                <button className="primary-button" disabled={isBusy || !isDirty} type="submit">
+                  {isBusy ? "Zapisuję..." : "Zapisz zestaw"}
+                </button>
+              </form>
+            </section>
+          )}
 
-                  {isDirty && <p role="status">Masz niezapisane zmiany. Lista zakupów zmieni się po zapisaniu.</p>}
-                  {notice && !isDirty && <p className="integration-status" role="status">{notice}</p>}
-                  <button className="primary-button" disabled={isBusy || !isDirty} type="submit">
-                    {isBusy ? "Zapisuję..." : "Zapisz zestaw"}
-                  </button>
-                </form>
-              </section>
-            )}
-
-            {tab === "list" && (
-              <section aria-labelledby="set-tab-list" id="set-panel-list" role="tabpanel">
-                {isDirty && <p>Lista odpowiada ostatnio zapisanemu zestawowi. Zapisz zmiany, aby ją przeliczyć.</p>}
-                {!list && !error && <p role="status">Wczytuję listę...</p>}
-                {list && <ShoppingListItems accessToken={accessToken} list={list} onListChange={setList} />}
-              </section>
-            )}
-          </>
-        )}
-      </div>
-    </main>
+          {tab === "list" && (
+            <section aria-labelledby="set-tab-list" id="set-panel-list" role="tabpanel">
+              {isDirty && <p>Lista odpowiada ostatnio zapisanemu zestawowi. Zapisz zmiany, aby ją przeliczyć.</p>}
+              {!list && !error && <p role="status">Wczytuję listę...</p>}
+              {list && <ShoppingListItems accessToken={accessToken} list={list} onListChange={setList} />}
+            </section>
+          )}
+        </>
+      )}
+    </div>
   )
 }

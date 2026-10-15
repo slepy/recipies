@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
 
 import ConfirmBar from "../../shared/ui/ConfirmBar"
-import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
 import { deleteShoppingList, getRefreshPreview, getShoppingList, RefreshPreview, refreshShoppingList, ShoppingList } from "./api"
 import ShoppingListItems from "./ShoppingListItems"
 
 type ShoppingListViewProps = {
   accessToken: string
   listId: number
-  accountEmail: string
-  headerLinks: HeaderLink[]
-  onSignOut: () => void
   onBack: () => void
   onBackToPlan: (planId: number) => void
 }
@@ -18,9 +14,6 @@ type ShoppingListViewProps = {
 export default function ShoppingListView({
   accessToken,
   listId,
-  accountEmail,
-  headerLinks,
-  onSignOut,
   onBack,
   onBackToPlan,
 }: ShoppingListViewProps) {
@@ -83,78 +76,80 @@ export default function ShoppingListView({
   }
 
   return (
-    <main className="recipe-app">
-      <PageHeader accountEmail={accountEmail} links={headerLinks} onSignOut={onSignOut} />
-      <div className="recipe-home plan-page">
-        <button
-          className="text-button recipe-back"
-          onClick={() => (list?.plan ? onBackToPlan(list.plan) : onBack())}
-          type="button"
-        >
-          ← Plan
-        </button>
-        {!list && !error && <p role="status">Wczytuję listę...</p>}
-        {error && <p className="form-error" role="alert">{error}</p>}
+    <div className="page">
+      <button className="text-button recipe-back" onClick={onBack} type="button">
+        ← Listy zakupów
+      </button>
+      {!list && !error && <p role="status">Wczytuję listę...</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
 
-        {list && (
-          <>
-            <header className="plan-heading">
+      {list && (
+        <>
+          <header className="page-header plan-heading">
+            <div>
+              <span className="eyebrow">LISTA ZAKUPÓW</span>
               <h1>{list.name}</h1>
-              <div className="plan-heading__actions">
-                <button className="text-button" onClick={() => setIsConfirmingDelete(true)} type="button">
-                  Usuń listę
+              <p className="page-intro">Kupione {list.bought_count} z {list.item_count}</p>
+            </div>
+            <div className="plan-heading__actions">
+              {list.plan && (
+                <button className="secondary-button" onClick={() => onBackToPlan(list.plan!)} type="button">
+                  Otwórz plan
                 </button>
-              </div>
-            </header>
+              )}
+              <button className="text-button text-button--danger" onClick={() => setIsConfirmingDelete(true)} type="button">
+                Usuń listę
+              </button>
+            </div>
+          </header>
 
-            {list.is_stale && !preview && (
-              <section className="stale-notice" aria-label="Plan zmienił się">
-                <p>Plan zmienił się od wygenerowania listy.</p>
-                <button className="secondary-button" disabled={isBusy || isSavingItem} onClick={showPreview} type="button">
-                  Odśwież z planu
-                </button>
-              </section>
-            )}
+          {list.is_stale && !preview && (
+            <section className="stale-notice" aria-label="Plan zmienił się">
+              <p>Plan zmienił się od wygenerowania listy.</p>
+              <button className="secondary-button" disabled={isBusy || isSavingItem} onClick={showPreview} type="button">
+                Odśwież z planu
+              </button>
+            </section>
+          )}
 
-            {preview && (
-              <ConfirmBar
-                confirmLabel="Odśwież listę"
-                isBusy={isBusy || isSavingItem}
-                onCancel={() => setPreview(null)}
-                onConfirm={() => void applyRefresh()}
-                title="Odświeżyć listę z planu?"
-              >
-                <ul>
-                  <li>Dodane pozycje: {preview.added.length}{preview.added.length > 0 && ` (${preview.added.join(", ")})`}</li>
-                  <li>Zmienione pozycje: {preview.changed.length}{preview.changed.length > 0 && ` (${preview.changed.join(", ")})`}</li>
-                  <li>Usunięte pozycje: {preview.removed.length}{preview.removed.length > 0 && ` (${preview.removed.join(", ")})`}</li>
-                  <li>Zachowane własne pozycje: {preview.custom_kept}</li>
-                </ul>
-              </ConfirmBar>
-            )}
+          {preview && (
+            <ConfirmBar
+              confirmLabel="Odśwież listę"
+              isBusy={isBusy || isSavingItem}
+              onCancel={() => setPreview(null)}
+              onConfirm={() => void applyRefresh()}
+              title="Odświeżyć listę z planu?"
+            >
+              <ul>
+                <li>Dodane pozycje: {preview.added.length}{preview.added.length > 0 && ` (${preview.added.join(", ")})`}</li>
+                <li>Zmienione pozycje: {preview.changed.length}{preview.changed.length > 0 && ` (${preview.changed.join(", ")})`}</li>
+                <li>Usunięte pozycje: {preview.removed.length}{preview.removed.length > 0 && ` (${preview.removed.join(", ")})`}</li>
+                <li>Zachowane własne pozycje: {preview.custom_kept}</li>
+              </ul>
+            </ConfirmBar>
+          )}
 
-            {isConfirmingDelete && (
-              <ConfirmBar
-                confirmLabel="Usuń listę"
-                isBusy={isBusy || isSavingItem}
-                onCancel={() => setIsConfirmingDelete(false)}
-                onConfirm={() => void removeList()}
-                title="Usunąć listę zakupów?"
-              >
-                <p>Lista i jej własne pozycje zostaną usunięte. Plan pozostanie bez zmian.</p>
-              </ConfirmBar>
-            )}
+          {isConfirmingDelete && (
+            <ConfirmBar
+              confirmLabel="Usuń listę"
+              isBusy={isBusy || isSavingItem}
+              onCancel={() => setIsConfirmingDelete(false)}
+              onConfirm={() => void removeList()}
+              title="Usunąć listę zakupów?"
+            >
+              <p>Lista i jej własne pozycje zostaną usunięte. Plan pozostanie bez zmian.</p>
+            </ConfirmBar>
+          )}
 
-            <ShoppingListItems
-              accessToken={accessToken}
-              disabled={isBusy}
-              list={list}
-              onBusyChange={setIsSavingItem}
-              onListChange={setList}
-            />
-          </>
-        )}
-      </div>
-    </main>
+          <ShoppingListItems
+            accessToken={accessToken}
+            disabled={isBusy}
+            list={list}
+            onBusyChange={setIsSavingItem}
+            onListChange={setList}
+          />
+        </>
+      )}
+    </div>
   )
 }

@@ -74,12 +74,9 @@ function renderList() {
   render(
     <ShoppingListView
       accessToken="token"
-      accountEmail="cook@example.com"
-      headerLinks={[]}
       listId={8}
       onBack={vi.fn()}
       onBackToPlan={vi.fn()}
-      onSignOut={vi.fn()}
     />,
   )
 }

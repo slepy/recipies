@@ -2,7 +2,6 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react"
 
 import { ApiError } from "../../shared/api/client"
 import ConfirmBar from "../../shared/ui/ConfirmBar"
-import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
 import {
   createUnitWeight,
   deleteUnitWeight,
@@ -14,9 +13,6 @@ import {
 
 type IngredientBaseProps = {
   accessToken: string
-  accountEmail: string
-  headerLinks: HeaderLink[]
-  onSignOut: () => void
 }
 
 const sourceLabels: Record<UnitWeight["source"], string> = { auto: "automatycznie", manual: "ręcznie" }
@@ -97,7 +93,7 @@ function EntryForm({ label, initial, submitLabel, isBusy, onSubmit, onCancel }: 
   )
 }
 
-export default function IngredientBase({ accessToken, accountEmail, headerLinks, onSignOut }: IngredientBaseProps) {
+export default function IngredientBase({ accessToken }: IngredientBaseProps) {
   const [query, setQuery] = useState("")
   const [entries, setEntries] = useState<UnitWeight[]>([])
   const [page, setPage] = useState(1)
@@ -178,86 +174,88 @@ export default function IngredientBase({ accessToken, accountEmail, headerLinks,
   const isEmptyBase = !isLoading && !error && entries.length === 0 && !query.trim()
 
   return (
-    <main className="recipe-app">
-      <PageHeader accountEmail={accountEmail} links={headerLinks} onSignOut={onSignOut} />
-      <div className="recipe-home plan-page">
-        <h1>Baza składników</h1>
-        <p>Ile waży jedna jednostka produktu. Dzięki temu lista zakupów sama przelicza gramaturę.</p>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <span className="eyebrow">USTAWIENIA KUCHNI</span>
+          <h1>Baza składników</h1>
+          <p className="page-intro">Ile waży jedna jednostka produktu. Dzięki temu lista zakupów sama przelicza gramaturę.</p>
+        </div>
+      </header>
 
-        <section aria-labelledby="new-entry-heading" className="plan-card">
-          <h2 id="new-entry-heading">Nowy wpis</h2>
-          <EntryForm
-            initial={{ name: "", unit: "", grams: "" }}
+      <section aria-labelledby="new-entry-heading" className="plan-card">
+        <h2 id="new-entry-heading">Nowy wpis</h2>
+        <EntryForm
+          initial={{ name: "", unit: "", grams: "" }}
+          isBusy={isBusy}
+          label="Nowy wpis"
+          onSubmit={add}
+          submitLabel="Dodaj wpis"
+        />
+      </section>
+
+      <section aria-labelledby="entries-heading">
+        <h2 id="entries-heading">Zapisane produkty</h2>
+        <label className="field" htmlFor="entry-search">
+          <span>Szukaj produktu</span>
+          <input id="entry-search" onChange={(event) => setQuery(event.target.value)} type="search" value={query} />
+        </label>
+
+        {deleting && (
+          <ConfirmBar
+            confirmLabel="Usuń wpis"
             isBusy={isBusy}
-            label="Nowy wpis"
-            onSubmit={add}
-            submitLabel="Dodaj wpis"
-          />
-        </section>
+            onCancel={() => setDeleting(null)}
+            onConfirm={() => void remove(deleting)}
+            title={`Usunąć wpis „${entryLabel(deleting)}”?`}
+          >
+            <p>Listy zakupów i przepisy zostaną bez zmian. Wpis może wrócić przy zapisie przepisu.</p>
+          </ConfirmBar>
+        )}
 
-        <section aria-labelledby="entries-heading">
-          <h2 id="entries-heading">Zapisane produkty</h2>
-          <label className="field" htmlFor="entry-search">
-            <span>Szukaj produktu</span>
-            <input id="entry-search" onChange={(event) => setQuery(event.target.value)} type="search" value={query} />
-          </label>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        {isLoading && entries.length === 0 && <p role="status">Wczytuję bazę...</p>}
+        {isEmptyBase && (
+          <p>
+            Baza jest jeszcze pusta. Wpisy powstają same, gdy zapiszesz przepis albo własną pozycję listy z ilością i
+            wagą, np. „12 szt., 240 g” daje „20 g na sztukę”. Możesz też dodać wpis ręcznie.
+          </p>
+        )}
+        {!isLoading && !error && entries.length === 0 && query.trim() && <p>Nie znaleziono produktu „{query.trim()}”.</p>}
 
-          {deleting && (
-            <ConfirmBar
-              confirmLabel="Usuń wpis"
-              isBusy={isBusy}
-              onCancel={() => setDeleting(null)}
-              onConfirm={() => void remove(deleting)}
-              title={`Usunąć wpis „${entryLabel(deleting)}”?`}
-            >
-              <p>Listy zakupów i przepisy zostaną bez zmian. Wpis może wrócić przy zapisie przepisu.</p>
-            </ConfirmBar>
-          )}
-
-          {error && <p className="form-error" role="alert">{error}</p>}
-          {isLoading && entries.length === 0 && <p role="status">Wczytuję bazę...</p>}
-          {isEmptyBase && (
-            <p>
-              Baza jest jeszcze pusta. Wpisy powstają same, gdy zapiszesz przepis albo własną pozycję listy z ilością i
-              wagą, np. „12 szt., 240 g” daje „20 g na sztukę”. Możesz też dodać wpis ręcznie.
-            </p>
-          )}
-          {!isLoading && !error && entries.length === 0 && query.trim() && <p>Nie znaleziono produktu „{query.trim()}”.</p>}
-
-          <ul className="list-items">
-            {entries.map((entry) => (
-              <li className="list-item" key={entry.id}>
-                {editingId === entry.id ? (
-                  <EntryForm
-                    initial={{ name: entry.name, unit: entry.unit, grams: String(entry.grams_per_unit) }}
-                    isBusy={isBusy}
-                    label={`Popraw wpis: ${entry.name}`}
-                    onCancel={() => setEditingId(null)}
-                    onSubmit={(changed) => save(entry.id, changed)}
-                    submitLabel="Zapisz"
-                  />
-                ) : (
-                  <>
-                    <span>{entryLabel(entry)}</span>
-                    <span className="badge">{sourceLabels[entry.source]}</span>
-                    <button className="text-button" onClick={() => setEditingId(entry.id)} type="button">
-                      Popraw: {entry.name}
-                    </button>
-                    <button className="text-button" onClick={() => setDeleting(entry)} type="button">
-                      Usuń: {entry.name}
-                    </button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-          {hasMore && (
-            <button className="secondary-button" disabled={isLoading} onClick={() => void load(query, page + 1)} type="button">
-              Pokaż więcej
-            </button>
-          )}
-        </section>
-      </div>
-    </main>
+        <ul className="list-items">
+          {entries.map((entry) => (
+            <li className="list-item" key={entry.id}>
+              {editingId === entry.id ? (
+                <EntryForm
+                  initial={{ name: entry.name, unit: entry.unit, grams: String(entry.grams_per_unit) }}
+                  isBusy={isBusy}
+                  label={`Popraw wpis: ${entry.name}`}
+                  onCancel={() => setEditingId(null)}
+                  onSubmit={(changed) => save(entry.id, changed)}
+                  submitLabel="Zapisz"
+                />
+              ) : (
+                <>
+                  <span>{entryLabel(entry)}</span>
+                  <span className="badge">{sourceLabels[entry.source]}</span>
+                  <button aria-label={`Popraw: ${entry.name}`} className="text-button" onClick={() => setEditingId(entry.id)} type="button">
+                    Popraw
+                  </button>
+                  <button aria-label={`Usuń: ${entry.name}`} className="text-button text-button--danger" onClick={() => setDeleting(entry)} type="button">
+                    Usuń
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+        {hasMore && (
+          <button className="secondary-button" disabled={isLoading} onClick={() => void load(query, page + 1)} type="button">
+            Pokaż więcej
+          </button>
+        )}
+      </section>
+    </div>
   )
 }

@@ -3,7 +3,6 @@ import { FormEvent, useCallback, useEffect, useState } from "react"
 import { ApiError } from "../../shared/api/client"
 import { formatDay, formatPeriod } from "../../shared/lib/formatDate"
 import ConfirmBar from "../../shared/ui/ConfirmBar"
-import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
 import { getRecipes, Recipe } from "../recipes/api"
 import { createShoppingList, deleteShoppingList, getShoppingLists, ShoppingListSummary } from "../shopping-lists/api"
 import {
@@ -25,9 +24,6 @@ import MealSection from "./MealSection"
 type MealPlanViewProps = {
   accessToken: string
   planId: number
-  accountEmail: string
-  headerLinks: HeaderLink[]
-  onSignOut: () => void
   onBack: () => void
   onOpenList: (listId: number) => void
 }
@@ -37,9 +33,6 @@ type Pending = { title: string; message: string; confirmLabel: string; run: () =
 export default function MealPlanView({
   accessToken,
   planId,
-  accountEmail,
-  headerLinks,
-  onSignOut,
   onBack,
   onOpenList,
 }: MealPlanViewProps) {
@@ -243,174 +236,174 @@ export default function MealPlanView({
   const selection = isSelecting ? { excluded, toggleEntries } : null
 
   return (
-    <main className="recipe-app">
-      <PageHeader accountEmail={accountEmail} links={headerLinks} onSignOut={onSignOut} />
-      <div className="recipe-home plan-page">
-        <button className="text-button recipe-back" onClick={onBack} type="button">
-          ← Plany żywieniowe
-        </button>
-        {!plan && !error && <p role="status">Wczytuję plan...</p>}
-        {error && <p className="form-error" role="alert">{error}</p>}
+    <div className="page">
+      <button className="text-button recipe-back" onClick={onBack} type="button">
+        ← Plany żywieniowe
+      </button>
+      {!plan && !error && <p role="status">Wczytuję plan...</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
 
-        {pending && (
-          <ConfirmBar
-            confirmLabel={pending.confirmLabel}
-            isBusy={isBusy}
-            onCancel={() => setPending(null)}
-            onConfirm={() => void confirmPending()}
-            title={pending.title}
-          >
-            <p>{pending.message}</p>
-          </ConfirmBar>
-        )}
+      {pending && (
+        <ConfirmBar
+          confirmLabel={pending.confirmLabel}
+          isBusy={isBusy}
+          onCancel={() => setPending(null)}
+          onConfirm={() => void confirmPending()}
+          title={pending.title}
+        >
+          <p>{pending.message}</p>
+        </ConfirmBar>
+      )}
 
-        {plan && (
-          <>
-            <header className="plan-heading">
+      {plan && (
+        <>
+          <header className="page-header plan-heading">
+            <div>
+              <span className="eyebrow">PLAN ŻYWIENIOWY</span>
               <h1>{plan.name}</h1>
-              <p>{formatPeriod(plan.start_date, plan.end_date)}</p>
-              <div className="plan-heading__actions">
-                <button className="secondary-button" onClick={startEditingPeriod} type="button">
-                  Zmień nazwę i okres
-                </button>
-                <button className="secondary-button" disabled={isSelecting} onClick={startSelecting} type="button">
-                  Utwórz listę zakupów
-                </button>
-                <button className="text-button" onClick={askToDeletePlan} type="button">
-                  Usuń plan
-                </button>
-              </div>
-            </header>
+              <p className="page-intro">{formatPeriod(plan.start_date, plan.end_date)}</p>
+            </div>
+            <div className="plan-heading__actions">
+              <button className="secondary-button" onClick={startEditingPeriod} type="button">
+                Zmień nazwę i okres
+              </button>
+              <button className="primary-button" disabled={isSelecting} onClick={startSelecting} type="button">
+                Utwórz listę zakupów
+              </button>
+              <button className="text-button text-button--danger" onClick={askToDeletePlan} type="button">
+                Usuń plan
+              </button>
+            </div>
+          </header>
 
-            {isEditingPeriod && (
-              <form className="plan-form plan-card" onSubmit={savePeriod} noValidate aria-label="Zmiana nazwy i okresu">
-                <label className="field" htmlFor="edit-name">
-                  <span>Nazwa planu</span>
-                  <input id="edit-name" onChange={(event) => setEditName(event.target.value)} value={editName} />
-                  {editErrors.name && <small className="form-error" role="alert">{editErrors.name}</small>}
-                </label>
-                <label className="field" htmlFor="edit-start">
-                  <span>Od</span>
-                  <input id="edit-start" onChange={(event) => setEditStart(event.target.value)} type="date" value={editStart} />
-                  {editErrors.start_date && <small className="form-error" role="alert">{editErrors.start_date}</small>}
-                </label>
-                <label className="field" htmlFor="edit-end">
-                  <span>Do</span>
-                  <input id="edit-end" onChange={(event) => setEditEnd(event.target.value)} type="date" value={editEnd} />
-                  {editErrors.end_date && <small className="form-error" role="alert">{editErrors.end_date}</small>}
-                </label>
-                <button className="primary-button" disabled={isBusy} type="submit">Zapisz zmiany</button>
-                <button className="secondary-button" onClick={() => setIsEditingPeriod(false)} type="button">
-                  Anuluj
-                </button>
-              </form>
-            )}
+          {isEditingPeriod && (
+            <form className="plan-form plan-card" onSubmit={savePeriod} noValidate aria-label="Zmiana nazwy i okresu">
+              <label className="field" htmlFor="edit-name">
+                <span>Nazwa planu</span>
+                <input id="edit-name" onChange={(event) => setEditName(event.target.value)} value={editName} />
+                {editErrors.name && <small className="form-error" role="alert">{editErrors.name}</small>}
+              </label>
+              <label className="field" htmlFor="edit-start">
+                <span>Od</span>
+                <input id="edit-start" onChange={(event) => setEditStart(event.target.value)} type="date" value={editStart} />
+                {editErrors.start_date && <small className="form-error" role="alert">{editErrors.start_date}</small>}
+              </label>
+              <label className="field" htmlFor="edit-end">
+                <span>Do</span>
+                <input id="edit-end" onChange={(event) => setEditEnd(event.target.value)} type="date" value={editEnd} />
+                {editErrors.end_date && <small className="form-error" role="alert">{editErrors.end_date}</small>}
+              </label>
+              <button className="primary-button" disabled={isBusy} type="submit">Zapisz zmiany</button>
+              <button className="secondary-button" onClick={() => setIsEditingPeriod(false)} type="button">
+                Anuluj
+              </button>
+            </form>
+          )}
 
-            {isSelecting && (
-              <form className="plan-form plan-card" onSubmit={submitList} noValidate aria-label="Nowa lista zakupów">
-                <p>Zaznacz dni, posiłki lub wpisy, z których ma powstać lista.</p>
-                <label className="field" htmlFor="list-name">
-                  <span>Nazwa listy</span>
-                  <input id="list-name" onChange={(event) => setListName(event.target.value)} value={listName} />
-                  {listErrors.name && <small className="form-error" role="alert">{listErrors.name}</small>}
-                </label>
-                <label className="field" htmlFor="range-start">
-                  <span>Zakres od</span>
-                  <input id="range-start" max={plan.end_date} min={plan.start_date} onChange={(event) => setRangeStart(event.target.value)} type="date" value={rangeStart} />
-                </label>
-                <label className="field" htmlFor="range-end">
-                  <span>Zakres do</span>
-                  <input id="range-end" max={plan.end_date} min={plan.start_date} onChange={(event) => setRangeEnd(event.target.value)} type="date" value={rangeEnd} />
-                  {(listErrors.end_date || listErrors.start_date) && (
-                    <small className="form-error" role="alert">{listErrors.end_date || listErrors.start_date}</small>
-                  )}
-                </label>
-                <p role="status">Wybrane wpisy: {selectedCount}</p>
-                {selectedCount === 0 && <p>Wybierz co najmniej jeden wpis, aby utworzyć listę.</p>}
-                <button className="primary-button" disabled={isBusy || selectedCount === 0} type="submit">
-                  {isBusy ? "Chwila..." : "Utwórz listę"}
-                </button>
-                <button className="secondary-button" onClick={() => setIsSelecting(false)} type="button">
-                  Anuluj
-                </button>
-              </form>
-            )}
+          {isSelecting && (
+            <form className="plan-form plan-card" onSubmit={submitList} noValidate aria-label="Nowa lista zakupów">
+              <p>Zaznacz dni, posiłki lub wpisy, z których ma powstać lista.</p>
+              <label className="field" htmlFor="list-name">
+                <span>Nazwa listy</span>
+                <input id="list-name" onChange={(event) => setListName(event.target.value)} value={listName} />
+                {listErrors.name && <small className="form-error" role="alert">{listErrors.name}</small>}
+              </label>
+              <label className="field" htmlFor="range-start">
+                <span>Zakres od</span>
+                <input id="range-start" max={plan.end_date} min={plan.start_date} onChange={(event) => setRangeStart(event.target.value)} type="date" value={rangeStart} />
+              </label>
+              <label className="field" htmlFor="range-end">
+                <span>Zakres do</span>
+                <input id="range-end" max={plan.end_date} min={plan.start_date} onChange={(event) => setRangeEnd(event.target.value)} type="date" value={rangeEnd} />
+                {(listErrors.end_date || listErrors.start_date) && (
+                  <small className="form-error" role="alert">{listErrors.end_date || listErrors.start_date}</small>
+                )}
+              </label>
+              <p role="status">Wybrane wpisy: {selectedCount}</p>
+              {selectedCount === 0 && <p>Wybierz co najmniej jeden wpis, aby utworzyć listę.</p>}
+              <button className="primary-button" disabled={isBusy || selectedCount === 0} type="submit">
+                {isBusy ? "Chwila..." : "Utwórz listę"}
+              </button>
+              <button className="secondary-button" onClick={() => setIsSelecting(false)} type="button">
+                Anuluj
+              </button>
+            </form>
+          )}
 
-            {plan.days.map((day) => {
-              const dayEntryIds = day.meals.flatMap((meal) => meal.entries.map((entry) => entry.id))
-              const isDayChecked = dayEntryIds.every((id) => !excluded.has(id))
-              const isOutsideRange = isSelecting && (day.date < rangeStart || day.date > rangeEnd)
-              return (
-                <section className="plan-day" aria-label={formatDay(day.date)} key={day.date}>
-                  <div className="plan-day__heading">
-                    {isSelecting && (
-                      <input
-                        aria-label={`Do listy cały dzień: ${formatDay(day.date)}`}
-                        checked={isDayChecked}
-                        disabled={dayEntryIds.length === 0}
-                        onChange={() => toggleEntries(dayEntryIds)}
-                        type="checkbox"
-                      />
-                    )}
-                    <h3>{formatDay(day.date)}</h3>
-                    {isOutsideRange && <span>poza zakresem listy</span>}
-                  </div>
-                  {day.meals.map((meal) => (
-                    <MealSection
-                      isBusy={isBusy}
-                      key={meal.id}
-                      meal={meal}
-                      onAddRecipe={(mealId, recipe, servings) =>
-                        void mutate(() => addEntry(accessToken, planId, mealId, recipe.id, servings))
-                      }
-                      onChangeServings={(entryId, servings) =>
-                        void mutate(() => updateEntry(accessToken, planId, entryId, { servings }))
-                      }
-                      onRemoveEntry={(entryId) => void mutate(() => deleteEntry(accessToken, planId, entryId))}
-                      onRemoveMeal={askToRemoveMeal}
-                      onRename={(mealId, name) => void mutate(() => renameMeal(accessToken, planId, mealId, name))}
-                      recipes={recipes}
-                      selection={selection}
+          {plan.days.map((day) => {
+            const dayEntryIds = day.meals.flatMap((meal) => meal.entries.map((entry) => entry.id))
+            const isDayChecked = dayEntryIds.every((id) => !excluded.has(id))
+            const isOutsideRange = isSelecting && (day.date < rangeStart || day.date > rangeEnd)
+            return (
+              <section className="plan-day" aria-label={formatDay(day.date)} key={day.date}>
+                <div className="plan-day__heading">
+                  {isSelecting && (
+                    <input
+                      aria-label={`Do listy cały dzień: ${formatDay(day.date)}`}
+                      checked={isDayChecked}
+                      disabled={dayEntryIds.length === 0}
+                      onChange={() => toggleEntries(dayEntryIds)}
+                      type="checkbox"
                     />
-                  ))}
-                  <div className="plan-day__add">
-                    <button
-                      aria-label={`Dodaj posiłek do dnia: ${formatDay(day.date)}`}
-                      className="secondary-button"
-                      disabled={isBusy || day.meals.length >= maxMealsPerDay}
-                      onClick={() => void mutate(() => addMeal(accessToken, planId, day.date))}
-                      type="button"
-                    >
-                      + Dodaj posiłek
-                    </button>
-                    {day.meals.length >= maxMealsPerDay && (
-                      <small>Dzień ma już maksymalną liczbę {maxMealsPerDay} posiłków.</small>
-                    )}
-                  </div>
-                </section>
-              )
-            })}
-
-            <section aria-labelledby="plan-lists-heading" className="plan-card">
-              <h2 id="plan-lists-heading">Listy zakupów z tego planu</h2>
-              {lists.length === 0 && <p>Nie utworzono jeszcze żadnej listy.</p>}
-              <ul className="plan-list">
-                {lists.map((list) => (
-                  <li key={list.id}>
-                    <button className="plan-list__item" onClick={() => onOpenList(list.id)} type="button">
-                      <strong>{list.name}</strong>
-                      <span>Kupione {list.bought_count} z {list.item_count}</span>
-                    </button>
-                    <button className="text-button" onClick={() => askToDeleteList(list)} type="button">
-                      Usuń listę: {list.name}
-                    </button>
-                  </li>
+                  )}
+                  <h3>{formatDay(day.date)}</h3>
+                  {isOutsideRange && <span>poza zakresem listy</span>}
+                </div>
+                {day.meals.map((meal) => (
+                  <MealSection
+                    isBusy={isBusy}
+                    key={meal.id}
+                    meal={meal}
+                    onAddRecipe={(mealId, recipe, servings) =>
+                      void mutate(() => addEntry(accessToken, planId, mealId, recipe.id, servings))
+                    }
+                    onChangeServings={(entryId, servings) =>
+                      void mutate(() => updateEntry(accessToken, planId, entryId, { servings }))
+                    }
+                    onRemoveEntry={(entryId) => void mutate(() => deleteEntry(accessToken, planId, entryId))}
+                    onRemoveMeal={askToRemoveMeal}
+                    onRename={(mealId, name) => void mutate(() => renameMeal(accessToken, planId, mealId, name))}
+                    recipes={recipes}
+                    selection={selection}
+                  />
                 ))}
-              </ul>
-            </section>
-          </>
-        )}
-      </div>
-    </main>
+                <div className="plan-day__add">
+                  <button
+                    aria-label={`Dodaj posiłek do dnia: ${formatDay(day.date)}`}
+                    className="secondary-button"
+                    disabled={isBusy || day.meals.length >= maxMealsPerDay}
+                    onClick={() => void mutate(() => addMeal(accessToken, planId, day.date))}
+                    type="button"
+                  >
+                    + Dodaj posiłek
+                  </button>
+                  {day.meals.length >= maxMealsPerDay && (
+                    <small>Dzień ma już maksymalną liczbę {maxMealsPerDay} posiłków.</small>
+                  )}
+                </div>
+              </section>
+            )
+          })}
+
+          <section aria-labelledby="plan-lists-heading" className="plan-card">
+            <h2 id="plan-lists-heading">Listy zakupów z tego planu</h2>
+            {lists.length === 0 && <p>Nie utworzono jeszcze żadnej listy.</p>}
+            <ul className="plan-list">
+              {lists.map((list) => (
+                <li key={list.id}>
+                  <button className="plan-list__item" onClick={() => onOpenList(list.id)} type="button">
+                    <strong>{list.name}</strong>
+                    <span>Kupione {list.bought_count} z {list.item_count}</span>
+                  </button>
+                  <button className="text-button text-button--danger" onClick={() => askToDeleteList(list)} type="button">
+                    Usuń<span className="visually-hidden"> listę: {list.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
+    </div>
   )
 }

@@ -12,10 +12,7 @@ function renderList(onOpenPlan = vi.fn()) {
   render(
     <MealPlanList
       accessToken="token"
-      accountEmail="cook@example.com"
-      headerLinks={[]}
       onOpenPlan={onOpenPlan}
-      onSignOut={vi.fn()}
     />,
   )
   return onOpenPlan
