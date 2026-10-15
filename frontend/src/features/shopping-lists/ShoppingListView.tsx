@@ -5,6 +5,7 @@ import ConfirmBar from "../../shared/ui/ConfirmBar"
 import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
 import {
   addCustomItem,
+  CustomItemInput,
   deleteCustomItem,
   deleteShoppingList,
   getRefreshPreview,
@@ -26,8 +27,13 @@ type ShoppingListViewProps = {
   onBackToPlan: (planId: number) => void
 }
 
+const metricUnits = ["g", "kg", "ml", "l"] as const
+
 function quantity(item: ListItem) {
-  return item.amount === null ? "" : `${item.amount} ${item.unit}`.trim()
+  // Custom items keep the amount as typed ("1/2"); recipe items carry a summed number.
+  const amount = item.amount_text || (item.amount === null ? "" : String(item.amount))
+  const metric = item.metric_amount === null ? "" : `(${item.metric_amount} ${item.metric_unit})`
+  return [amount, item.unit, metric].filter(Boolean).join(" ")
 }
 
 function sourceText(source: ListItem["sources"][number]) {
@@ -85,6 +91,8 @@ export default function ShoppingListView({
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
   const [unit, setUnit] = useState("")
+  const [metricAmount, setMetricAmount] = useState("")
+  const [metricUnit, setMetricUnit] = useState<CustomItemInput["metric_unit"]>("")
   const [nameError, setNameError] = useState("")
 
   const load = useCallback(() => getShoppingList(accessToken, listId).then(setList), [accessToken, listId])
@@ -121,11 +129,22 @@ export default function ShoppingListView({
       setNameError("Podaj nazwę pozycji.")
       return
     }
+    // A metric measure needs both the number and the unit, as in the recipe form.
+    const parsedMetric = metricAmount.trim() === "" ? null : Number(metricAmount.trim().replace(",", "."))
+    const hasMetric = parsedMetric !== null && Number.isFinite(parsedMetric) && Boolean(metricUnit)
     void run(async () => {
-      await addCustomItem(accessToken, listId, { name, amount: amount === "" ? null : Number(amount), unit })
+      await addCustomItem(accessToken, listId, {
+        name,
+        amount,
+        unit,
+        metric_amount: hasMetric ? parsedMetric : null,
+        metric_unit: hasMetric ? metricUnit : "",
+      })
       setName("")
       setAmount("")
       setUnit("")
+      setMetricAmount("")
+      setMetricUnit("")
       await load()
     })
   }
@@ -244,11 +263,24 @@ export default function ShoppingListView({
               </label>
               <label className="field" htmlFor="custom-amount">
                 <span>Ilość</span>
-                <input id="custom-amount" min={0} onChange={(event) => setAmount(event.target.value)} step="any" type="number" value={amount} />
+                <input id="custom-amount" maxLength={100} onChange={(event) => setAmount(event.target.value)} value={amount} />
               </label>
               <label className="field" htmlFor="custom-unit">
                 <span>Jednostka</span>
-                <input id="custom-unit" onChange={(event) => setUnit(event.target.value)} value={unit} />
+                <input id="custom-unit" maxLength={100} onChange={(event) => setUnit(event.target.value)} value={unit} />
+              </label>
+              <label className="field" htmlFor="custom-metric-amount">
+                <span>Waga lub objętość</span>
+                <input id="custom-metric-amount" inputMode="decimal" maxLength={12} onChange={(event) => setMetricAmount(event.target.value)} value={metricAmount} />
+              </label>
+              <label className="field" htmlFor="custom-metric-unit">
+                <span>Miara</span>
+                <select id="custom-metric-unit" onChange={(event) => setMetricUnit(event.target.value as CustomItemInput["metric_unit"])} value={metricUnit}>
+                  <option value="">—</option>
+                  {metricUnits.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
               </label>
               <button className="primary-button" disabled={isBusy} type="submit">Dodaj pozycję</button>
             </form>

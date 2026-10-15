@@ -6,6 +6,9 @@ export type ListItem = {
   origin: "recipe" | "custom"
   amount: number | null
   unit: string
+  amount_text: string
+  metric_amount: number | null
+  metric_unit: "" | "g" | "kg" | "ml" | "l"
   partial: boolean
   sources: { recipe: string; date: string; meal: string }[]
   bought: boolean
@@ -38,7 +41,14 @@ export type ListInput = {
   excluded_entry_ids: number[]
 }
 
-export type CustomItemInput = { name: string; amount: number | null; unit: string }
+// Same fields as a recipe ingredient (see recipes/api.ts).
+export type CustomItemInput = {
+  name: string
+  amount: string
+  unit: string
+  metric_amount: number | null
+  metric_unit: "" | "g" | "kg" | "ml" | "l"
+}
 
 export type RefreshPreview = { added: string[]; changed: string[]; removed: string[]; custom_kept: number }
 

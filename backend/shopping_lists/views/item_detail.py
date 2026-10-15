@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from meal_plans.services import parse_amount
 from shopping_lists.models import ShoppingListItem
 from shopping_lists.serializers import ShoppingListItemSerializer, ShoppingListItemWriteSerializer
 
@@ -27,9 +28,12 @@ class ItemDetailView(APIView):
         if item.origin == ShoppingListItem.RECIPE and set(data) - {"bought"}:
             raise ValidationError({"detail": "Pozycji z przepisów nie można edytować."})
 
-        for field in ("name", "amount", "unit"):
+        for field in ("name", "unit", "metric_amount", "metric_unit"):
             if field in data:
                 setattr(item, field, data[field])
+        if "amount" in data:
+            item.amount_text = data["amount"]
+            item.amount = parse_amount(data["amount"])
         if "bought" in data:
             item.bought = data["bought"]
             item.bought_amount = item.amount if item.bought else None

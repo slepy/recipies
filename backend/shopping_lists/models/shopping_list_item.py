@@ -15,6 +15,10 @@ class ShoppingListItem(models.Model):
     key = models.CharField(max_length=300, blank=True, default="")
     amount = models.FloatField(null=True, blank=True)
     unit = models.CharField(max_length=100, blank=True, default="")
+    # Custom items take the same fields as a recipe ingredient: free-text amount plus a metric measure.
+    amount_text = models.CharField(max_length=100, blank=True, default="")
+    metric_amount = models.FloatField(null=True, blank=True)
+    metric_unit = models.CharField(max_length=2, blank=True, default="")
     # True when the same ingredient also appears in a different measure, so this sum covers only part of it.
     partial = models.BooleanField(default=False)
     sources = models.JSONField(default=list, blank=True)

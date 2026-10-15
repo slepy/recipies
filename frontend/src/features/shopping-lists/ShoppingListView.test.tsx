@@ -30,6 +30,9 @@ function item(overrides: Partial<ListItem>): ListItem {
     origin: "recipe",
     amount: 600,
     unit: "g",
+    amount_text: "",
+    metric_amount: null,
+    metric_unit: "",
     partial: false,
     sources: [{ recipe: "Spaghetti", date: "2026-11-02", meal: "Obiad" }],
     bought: false,
@@ -87,6 +90,15 @@ describe("shopping list view", () => {
     expect(screen.getByText(/Spaghetti – .* obiad/)).toBeInTheDocument()
   })
 
+  it("shows a custom item with its amount as typed and its metric measure", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(
+      list([item({ id: 2, name: "śmietana", origin: "custom", amount: 0.5, amount_text: "1/2", unit: "kubek", metric_amount: 125, metric_unit: "ml", sources: [] })]),
+    )
+    renderList()
+
+    expect(await screen.findByText("śmietana 1/2 kubek (125 ml)")).toBeInTheDocument()
+  })
+
   it("shows bought items under the active ones and lets the user restore them", async () => {
     vi.mocked(getShoppingList)
       .mockResolvedValueOnce(list([item({}), item({ id: 2, name: "jajka", amount: 4, unit: "szt", bought: true, bought_amount: 4 })]))
@@ -121,10 +133,19 @@ describe("shopping list view", () => {
     expect(addCustomItem).not.toHaveBeenCalled()
 
     await userEvent.type(screen.getByLabelText(/^Własna pozycja/), "papier toaletowy")
-    await userEvent.type(screen.getByLabelText("Ilość"), "2")
+    await userEvent.type(screen.getByLabelText("Ilość"), "1/2")
+    await userEvent.type(screen.getByLabelText("Jednostka"), "rolki")
+    await userEvent.type(screen.getByLabelText("Waga lub objętość"), "0,5")
+    await userEvent.selectOptions(screen.getByLabelText("Miara"), "kg")
     await userEvent.click(screen.getByRole("button", { name: "Dodaj pozycję" }))
 
-    expect(addCustomItem).toHaveBeenCalledWith("token", 8, { name: "papier toaletowy", amount: 2, unit: "" })
+    expect(addCustomItem).toHaveBeenCalledWith("token", 8, {
+      name: "papier toaletowy",
+      amount: "1/2",
+      unit: "rolki",
+      metric_amount: 0.5,
+      metric_unit: "kg",
+    })
   })
 
   it("shows no stale notice when the plan did not change", async () => {
