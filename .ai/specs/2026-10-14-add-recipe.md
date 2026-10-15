@@ -8,24 +8,25 @@
 
 ## Stan implementacji
 
-> Sprawdzono: 2026-10-15, kod z commitu `f42cc28` (`main`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
+> Sprawdzono: 2026-10-15, kod z gałęzi `feature/add-recipe-exif-and-image-input` (commit z tego PR; baza `main` @ `3f708ea`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
 
 | Obszar | Stan | Szczegóły |
 | --- | --- | --- |
 | FR-001 ręczne dodawanie | ✅ Zrobione | Model `Recipe`, `POST/GET /api/recipes/`, `RecipeWorkspace` |
 | FR-007 JWT i właściciel | ✅ Zrobione dla zapisu i zdjęcia | Rozpoznawanie jeszcze nie istnieje |
-| FR-008 zdjęcie potrawy | 🟡 Prawie | Wybór, podgląd, usunięcie przed zapisem, walidacja, prywatny endpoint działają; brakuje AC-020 (usunięcie EXIF) |
-| FR-002 wybór obrazu do rozpoznania | ❌ Brak | Brak osobnego pola na obraz do rozpoznania i obsługi aparatu |
-| FR-003–FR-006 rozpoznawanie, szkic, błędy | ❌ Brak | Zależy od rozpoznawania w specyfikacji integracji |
+| FR-008 zdjęcie potrawy | ✅ Zrobione | AC-020: `PhotoSanitizer` stosuje orientację EXIF i zapisuje plik bez metadanych; plik niebędący obrazem i obraz powyżej 40 Mpx są odrzucane |
+| FR-002 wybór obrazu do rozpoznania | ✅ Zrobione (strona klienta) | `RecognitionImagePicker`: aparat (`capture`) i plik, format/rozmiar przed wysyłką, podgląd, odrzucenie. „Backend ponownie sprawdza” (AC-005) dojdzie z endpointem rozpoznawania |
+| FR-003 zgoda na wysyłkę | 🟡 Częściowo | AC-007: informacja o zewnętrznej usłudze AI jest widoczna, nic nie jest wysyłane. Przycisk „Rozpoznaj przepis” jest nieaktywny; AC-008 (stan oczekiwania, blokada powtórzeń) wymaga endpointu |
+| FR-004–FR-006 rozpoznawanie, szkic, błędy | ❌ Brak | Zależy od rozpoznawania w specyfikacji integracji |
 | FR-009 propozycja kadru | ❌ Brak | Nowe wymaganie z 2026-10-15 |
-| Fazy (sekcja 11) | 1–2 zrobione, 3 częściowo, 4–7 nie zaczęte | |
+| Fazy (sekcja 11) | 1–4 zrobione (faza 4 bez podłączenia akcji wysyłki), 5–7 nie zaczęte | |
 
 **Znane problemy:**
 
-- `backend/tests/recipes/` nie ma `__init__.py`, więc `manage.py test tests` pomija 7 testów przepisów. Przechodzą, gdy uruchomić je bezpośrednio.
 - Katalog `frontend/.vite/` (wygenerowane zależności) jest w repozytorium.
+- Ręczny test dostępności (QR-004) dla formularza i wyboru obrazu nie był jeszcze wykonany.
 
-**Następny krok:** AC-020 (EXIF), potem faza 4.
+**Następny krok:** endpoint rozpoznawania i szkic (faza 5), po dostarczeniu rozpoznawania w specyfikacji integracji.
 
 ## 1. Podsumowanie
 
@@ -225,8 +226,8 @@ To wstępna ocena zakresu i dowodów, nie porada prawna ani potwierdzenie zgodno
 | --- | --- | --- | --- |
 | 1. Model i zapis ręczny | Model przepisu z migracją; prywatny zapis i odczyt; formularz ręcznego dodawania. | Uwierzytelnianie Django. | **Zrobione.** Przepis z wymaganym tytułem zapisuje się wyłącznie na koncie właściciela; testy pokrywają AC-001–AC-003 i FR-007. |
 | 2. Formularz i walidacja | Edycja części opisowej, składników i kroków, walidacja tytułu i stany błędu. | Faza 1. | **Zrobione, poza ręcznym testem dostępności (QR-004).** |
-| 3. Zdjęcie potrawy | Wybór, podgląd, zastąpienie i usunięcie zdjęcia w formularzu; zapis z przepisem; prywatny endpoint; usunięcie metadanych EXIF. | Faza 2; Pillow. | **Częściowo zrobione.** Brakuje AC-020 (ponowny zapis bez EXIF) i testu QR-003 dla metadanych. Testy pokrywają AC-018, AC-019, AC-021. |
-| 4. Wejście obrazu i zgoda | Wybór lub wykonanie jednego obrazu do rozpoznania, kontrola typu i rozmiaru, informacja o zewnętrznym przetwarzaniu, stany anulowania i oczekiwania. | Faza 2. | Obraz nie jest wysyłany przed jawną akcją; nieobsługiwane wejście jest odrzucane przed transferem; testy pokrywają AC-004–AC-008. |
+| 3. Zdjęcie potrawy | Wybór, podgląd, zastąpienie i usunięcie zdjęcia w formularzu; zapis z przepisem; prywatny endpoint; usunięcie metadanych EXIF. | Faza 2; Pillow. | **Zrobione.** Testy pokrywają AC-018–AC-021 i test QR-003 dla metadanych. |
+| 4. Wejście obrazu i zgoda | Wybór lub wykonanie jednego obrazu do rozpoznania, kontrola typu i rozmiaru, informacja o zewnętrznym przetwarzaniu, stany anulowania i oczekiwania. | Faza 2. | **Zrobione po stronie klienta**, bez podłączonej akcji wysyłki (AC-008 czeka na endpoint). Obraz nie jest wysyłany przed jawną akcją; nieobsługiwane wejście jest odrzucane przed transferem; testy pokrywają AC-004–AC-007. |
 | 5. Rozpoznawanie i edytowalny szkic | Połączenie z integracją OpenRouter/OpenAI, mapowanie wyniku na formularz, korekta przed zapisem. | Faza 4; rozpoznawanie ze specyfikacji integracji. | Testy mapowania, błędów i ponowień przechodzą; nic nie zapisuje się bez zatwierdzenia; testy pokrywają AC-009–AC-017 i QR-001–QR-002. |
 | 6. Propozycja kadru zdjęcia potrawy | Walidacja obszaru od AI, wycięcie kadru w backendzie, podgląd w szkicu, usunięcie lub zastąpienie propozycji, zapis przez ścieżkę z fazy 3. | Fazy 3 i 5; obszar dania w kontrakcie integracji. | Testy pokrywają AC-022–AC-025 i QR-005: poprawny obszar daje wycinek, brak lub błędny obszar daje szkic bez propozycji, usunięta propozycja nie zostaje zapisana. |
 | 7. Weryfikacja całości | Przepływy ręczny i importu, prywatność, dostępność, brak częściowego zapisu przy awarii. | Fazy 1–6. | Testy end-to-end obejmują sukces, anulowanie i awarię dostawcy; pozostałe luki są jawne przed udostępnieniem funkcji. |
@@ -239,15 +240,15 @@ To wstępna ocena zakresu i dowodów, nie porada prawna ani potwierdzenie zgodno
 
 | Wymaganie/AC | Metoda weryfikacji | Test lub dowód | Status |
 | --- | --- | --- | --- |
-| FR-001, AC-001–AC-003 | Testy formularza, walidacji i zapisu backendu | `backend/tests/recipes/test_recipe_collection.py`, `RecipeWorkspace.test.tsx` | Zrobione; uwaga: katalog `backend/tests/recipes/` nie ma `__init__.py`, więc pełny zestaw testów go pomija |
-| FR-002, AC-004–AC-006 | Testy wyboru, zdjęcia, formatu i rozmiaru | Do utworzenia | Planowane |
-| FR-003, AC-007–AC-008 | Test UI wysyłki i blokady powtórzeń | Do utworzenia | Planowane |
+| FR-001, AC-001–AC-003 | Testy formularza, walidacji i zapisu backendu | `backend/tests/recipes/test_recipe_collection.py`, `RecipeWorkspace.test.tsx` | Zrobione |
+| FR-002, AC-004–AC-006 | Testy wyboru, zdjęcia, formatu i rozmiaru | `RecipeWorkspace.test.tsx` (obraz do rozpoznania) | Zrobione po stronie klienta; ponowna walidacja backendu z endpointem rozpoznawania |
+| FR-003, AC-007–AC-008 | Test UI wysyłki i blokady powtórzeń | Informacja przed wysyłką: `RecipeWorkspace.test.tsx`; blokada powtórzeń do utworzenia | AC-007 zrobione, AC-008 planowane |
 | FR-004, AC-009–AC-011 | Test mapowania wyniku do edytowalnego szkicu i brakujących pól | Kontrakt wyniku w specyfikacji integracji | Planowane |
 | FR-005, AC-012–AC-013 | Test braku automatycznego zapisu, zapisu po akceptacji i braku obrazu do rozpoznania w przepisie | Do utworzenia | Planowane |
 | FR-006, AC-014–AC-015 | Test błędu, anulowania, ponowienia i ścieżki ręcznej | Do utworzenia z integracją | Planowane |
 | FR-007, AC-016–AC-017 | Testy backendu dla braku lub niepoprawnego JWT i przypisania właściciela | `test_recipe_collection.py` (zapis, zdjęcie potrawy) | Zrobione dla zapisu i zdjęcia; rozpoznanie planowane |
 | FR-008, AC-018–AC-019, AC-021 | Testy formatu, zapisu w jednej operacji i dostępu tylko dla właściciela | `test_recipe_collection.py`, `RecipeWorkspace.test.tsx` | Zrobione |
-| FR-008, AC-020 | Test, że zapisany plik nie ma EXIF i ma poprawną orientację | Do utworzenia | Planowane |
+| FR-008, AC-020 | Test, że zapisany plik nie ma EXIF i ma poprawną orientację | `test_saved_photo_has_no_exif_and_keeps_its_orientation` | Zrobione |
 | FR-009, AC-022–AC-025 | Testy backendu wycinania (poprawny, brakujący, poza obrazem, zbyt mały obszar) i test UI podglądu oraz usunięcia propozycji | Do utworzenia | Planowane |
 | QR-001–QR-003 | Test braku nowych plików po rozpoznaniu bez zapisu, walidacji plików i współrzędnych, braku EXIF; przegląd logów | Testy aplikacji i dowody ze specyfikacji integracji | Planowane |
 | QR-004–QR-005 | Ręczne testy dostępności i scenariuszy awarii, w tym błędu kadrowania | Po implementacji UI i integracji | Planowane |

@@ -3,6 +3,8 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from recipes.models import Recipe
+from recipes.services import PhotoSanitizer
+from recipes.services.photo_sanitizer import InvalidPhotoError
 
 
 class IngredientSerializer(serializers.Serializer):
@@ -44,7 +46,10 @@ class RecipeSerializer(serializers.ModelSerializer):
     def validate_photo(self, photo):
         if photo.size > 5 * 1024 * 1024:
             raise serializers.ValidationError("Zdjęcie może mieć maksymalnie 5 MB.")
-        return photo
+        try:
+            return PhotoSanitizer().sanitize(photo)
+        except InvalidPhotoError as error:
+            raise serializers.ValidationError(str(error)) from error
 
     def get_photo_url(self, recipe):
         if not recipe.photo:

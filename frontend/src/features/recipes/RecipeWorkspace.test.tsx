@@ -176,6 +176,60 @@ describe("recipe workspace", () => {
     expect(createRecipe).not.toHaveBeenCalled()
   })
 
+  it("lets the user pick a recognition image, shows the AI notice and allows discarding it", async () => {
+    const user = userEvent.setup()
+    const originalCreateObjectURL = URL.createObjectURL
+    const originalRevokeObjectURL = URL.revokeObjectURL
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:recognition") })
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() })
+    const view = renderWorkspace()
+
+    try {
+      await screen.findByRole("heading", { name: "Moje przepisy" })
+      await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
+      expect(screen.getByRole("heading", { name: "Obraz do rozpoznania" })).toBeInTheDocument()
+      expect(screen.getAllByText("JPG, PNG lub WebP · maks. 5 MB").length).toBeGreaterThan(0)
+      expect(screen.queryByRole("note")).not.toBeInTheDocument()
+
+      await user.upload(
+        screen.getByLabelText("Wybierz obraz z urządzenia"),
+        new File(["image data"], "page.jpg", { type: "image/jpeg" }),
+      )
+
+      expect(screen.getByRole("img", { name: "Podgląd obrazu do rozpoznania" })).toHaveAttribute("src", "blob:recognition")
+      expect(screen.getByRole("note")).toHaveTextContent("zostanie wysłany do zewnętrznej usługi AI")
+      expect(createRecipe).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole("button", { name: "Odrzuć obraz" }))
+      expect(screen.queryByRole("img", { name: "Podgląd obrazu do rozpoznania" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("note")).not.toBeInTheDocument()
+    } finally {
+      view.unmount()
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL })
+      Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: originalRevokeObjectURL })
+    }
+  })
+
+  it("rejects unsupported and oversized recognition images before any upload", async () => {
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await screen.findByRole("heading", { name: "Moje przepisy" })
+    await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
+
+    fireEvent.change(screen.getByLabelText("Zrób zdjęcie"), {
+      target: { files: [new File(["gif"], "page.gif", { type: "image/gif" })] },
+    })
+    expect(screen.getByRole("alert")).toHaveTextContent("Wybierz obraz w formacie JPG, PNG lub WebP.")
+    expect(screen.queryByRole("note")).not.toBeInTheDocument()
+
+    const tooLarge = new File(["x"], "page.png", { type: "image/png" })
+    Object.defineProperty(tooLarge, "size", { value: 5 * 1024 * 1024 + 1 })
+    fireEvent.change(screen.getByLabelText("Wybierz obraz z urządzenia"), { target: { files: [tooLarge] } })
+    expect(screen.getByRole("alert")).toHaveTextContent("Obraz może mieć maksymalnie 5 MB.")
+    expect(screen.queryByRole("note")).not.toBeInTheDocument()
+  })
+
   it("shows AI management when a provider is already configured", async () => {
     const user = userEvent.setup()
     const onOpenIntegrations = vi.fn()

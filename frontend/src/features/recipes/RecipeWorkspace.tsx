@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useState } from "react"
 
 import { getProviderConfiguration } from "../integrations/api"
 import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeInput } from "./api"
+import { imageAccept, imageFormatsHint, validateImage } from "./imageRules"
+import RecognitionImagePicker from "./RecognitionImagePicker"
 
 type RecipeWorkspaceProps = {
   accessToken: string
@@ -14,8 +16,6 @@ type RecipeWorkspaceProps = {
 type IngredientDraft = Ingredient
 
 const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "" }
-const maxPhotoSize = 5 * 1024 * 1024
-const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"]
 
 function optionalNumber(value: string) {
   return value === "" ? null : Number(value)
@@ -151,17 +151,9 @@ export default function RecipeWorkspace({
       setDishPhoto(null)
       return
     }
-    if (!allowedPhotoTypes.includes(file.type)) {
-      setDishPhoto(null)
-      setPhotoError("Wybierz zdjęcie w formacie JPG, PNG lub WebP.")
-      return
-    }
-    if (file.size > maxPhotoSize) {
-      setDishPhoto(null)
-      setPhotoError("Zdjęcie może mieć maksymalnie 5 MB.")
-      return
-    }
-    setDishPhoto(file)
+    const message = validateImage(file, "zdjęcie")
+    setPhotoError(message)
+    setDishPhoto(message ? null : file)
   }
 
   function startNewRecipe() {
@@ -263,6 +255,8 @@ export default function RecipeWorkspace({
             </button>
           </section>
 
+          <RecognitionImagePicker />
+
           <form className="recipe-form" onSubmit={submitRecipe}>
             <fieldset className="recipe-section">
               <legend>Część opisowa</legend>
@@ -292,13 +286,13 @@ export default function RecipeWorkspace({
                   <span className="recipe-photo-picker">
                     <span>{dishPhoto ? dishPhoto.name : "Wybierz zdjęcie"}</span>
                     <input
-                      accept="image/jpeg,image/png,image/webp"
+                      accept={imageAccept}
                       id="recipe-photo"
                       onChange={(event) => selectDishPhoto(event.target.files?.[0])}
                       type="file"
                     />
                   </span>
-                  <small>JPG, PNG lub WebP · maks. 5 MB</small>
+                  <small>{imageFormatsHint}</small>
                 </label>
                 {photoError && <p className="form-error" role="alert">{photoError}</p>}
                 {dishPhotoPreview && (

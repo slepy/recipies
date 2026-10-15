@@ -132,3 +132,37 @@ class RecipeCollectionApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Recipe.objects.exists())
+
+    def test_saved_photo_has_no_exif_and_keeps_its_orientation(self):
+        image = Image.new("RGB", (6, 2), color="tomato")
+        exif = Image.Exif()
+        exif[0x0112] = 6  # orientation: rotate 90 degrees on display
+        exif[0x010F] = "SecretCamera"
+        image_data = BytesIO()
+        image.save(image_data, format="JPEG", exif=exif)
+        upload = SimpleUploadedFile("dish.jpg", image_data.getvalue(), content_type="image/jpeg")
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                "/api/recipes/",
+                {"recipe": json.dumps({"title": "Zdjęcie z EXIF"}), "photo": upload},
+                format="multipart",
+            )
+
+            self.assertEqual(response.status_code, 201)
+            with Image.open(Recipe.objects.get().photo.path) as saved:
+                self.assertEqual(len(saved.getexif()), 0)
+                self.assertEqual(saved.size, (2, 6))
+
+    def test_rejects_file_that_is_not_an_image(self):
+        upload = SimpleUploadedFile("dish.png", b"not an image", content_type="image/png")
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                "/api/recipes/",
+                {"recipe": json.dumps({"title": "Fałszywe zdjęcie"}), "photo": upload},
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recipe.objects.exists())

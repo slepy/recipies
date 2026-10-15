@@ -709,6 +709,59 @@ h1 {
   flex: 0 0 auto;
 }
 
+.recognition-picker {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.recognition-picker h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.recognition-picker p,
+.recognition-picker small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.recognition-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recognition-picker__file {
+  position: relative;
+  cursor: pointer;
+}
+
+.recognition-picker__file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.recognition-picker__file:focus-within {
+  outline: 2px solid var(--tomato);
+  outline-offset: 2px;
+}
+
+.recognition-picker__consent {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  border-left: 3px solid var(--tomato);
+  padding: 14px 18px;
+  background: #eeede6;
+}
+
 .recipe-photo-field {
   display: grid;
   gap: 10px;
