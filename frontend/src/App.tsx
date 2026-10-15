@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react"
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router"
 
 import {
   Account,
@@ -11,22 +12,22 @@ import {
 import IntegrationSettings from "./features/integrations/IntegrationSettings"
 import RecipeWorkspace from "./features/recipes/RecipeWorkspace"
 
-type FormMode = "login" | "register"
 type AuthState = "loading" | "anonymous" | "authenticated"
 
 const foodImage =
   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1800&q=85"
 
 export default function App() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const mode = pathname === "/register" ? "register" : "login"
   const [authState, setAuthState] = useState<AuthState>("loading")
-  const [mode, setMode] = useState<FormMode>("login")
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showIntegrations, setShowIntegrations] = useState(false)
 
   useEffect(() => {
     let isCurrent = true
@@ -104,34 +105,41 @@ export default function App() {
       setAccessToken(null)
       setAccount(null)
       setAuthState("anonymous")
-      setMode("login")
-      setShowIntegrations(false)
     } catch {
       setError("Nie udało się zakończyć sesji. Spróbuj ponownie.")
     }
   }
 
   if (authState === "authenticated" && account && accessToken) {
-    if (showIntegrations) {
-      return (
-        <main className="recipe-app integration-page">
-          <IntegrationSettings
-            accessToken={accessToken}
-            onBack={() => setShowIntegrations(false)}
-          />
-        </main>
-      )
-    }
-
     return (
-      <RecipeWorkspace
-        accessToken={accessToken}
-        accountEmail={account.email}
-        accountError={error}
-        onOpenIntegrations={() => setShowIntegrations(true)}
-        onSignOut={signOut}
-      />
+      <Routes>
+        <Route
+          path="/recipes"
+          element={
+            <RecipeWorkspace
+              accessToken={accessToken}
+              accountEmail={account.email}
+              accountError={error}
+              onOpenIntegrations={() => navigate("/settings/integrations")}
+              onSignOut={signOut}
+            />
+          }
+        />
+        <Route
+          path="/settings/integrations"
+          element={
+            <main className="recipe-app integration-page">
+              <IntegrationSettings accessToken={accessToken} onBack={() => navigate("/recipes")} />
+            </main>
+          }
+        />
+        <Route path="*" element={<Navigate to="/recipes" replace />} />
+      </Routes>
     )
+  }
+
+  if (authState === "anonymous" && pathname !== "/login" && pathname !== "/register") {
+    return <Navigate to="/login" replace />
   }
 
   return (
@@ -204,7 +212,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setMode(mode === "login" ? "register" : "login")
+                  navigate(mode === "login" ? "/register" : "/login")
                   setError("")
                 }}
               >
