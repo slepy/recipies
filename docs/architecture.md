@@ -1,7 +1,7 @@
 # System Architecture
 
 > Status: Proposed baseline
-> Updated: 2026-10-15 (recipe sets, ADR-0006; ingredient knowledge base, ADR-0007)
+> Updated: 2026-10-15 (recipe sets, ADR-0006; ingredient knowledge base, ADR-0007; app shell and dashboard, ADR-0008)
 
 ## Goals
 
@@ -106,7 +106,7 @@ Organize the React application by both responsibility and product feature. Share
 
 ```text
 frontend/src/
-  app/                    # application setup, routes, global providers, page shell
+  app/                    # signed-in routes and main navigation (AuthenticatedApp, navIcons)
   shared/
     ui/                   # reusable, domain-neutral components
     api/                  # shared HTTP client and transport-level types
@@ -119,9 +119,10 @@ frontend/src/
     shopping-lists/       # shopping list screen, its item list and its API operations
     recipe-sets/          # recipe set list and set screens, "add to set" on a recipe
     ingredients/          # knowledge base screen, product picker, ingredient text helpers
+    overview/             # read-only overviews across features: dashboard, all shopping lists (ADR-0008)
 ```
 
-This is the intended direction for the initial frontend, not a mandate to create every folder up front. Routing uses React Router (ADR-0004); routes are declared in `App.tsx` until an `app/` module is needed, and feature screens receive navigation callbacks rather than importing the router. A feature owns its screens, feature-specific components, and API operations. `shared/ui` must not depend on product features or make network requests. Features may compose shared UI; shared UI must not import feature code. Keep API calls behind a small shared transport boundary and feature-owned API functions rather than scattering `fetch` calls across visual components.
+This is the intended direction for the initial frontend, not a mandate to create every folder up front. Routing uses React Router (ADR-0004). `App.tsx` owns the session and the sign-in screens; `app/AuthenticatedApp.tsx` declares the signed-in routes inside `shared/ui/AppShell` (sidebar navigation, ADR-0008). Feature screens receive navigation callbacks rather than importing the router and do not render their own navigation. `overview` only reads other features' API functions and is imported by `app/` alone, so no feature depends on it. A feature owns its screens, feature-specific components, and API operations. `shared/ui` must not depend on product features or make network requests. Features may compose shared UI; shared UI must not import feature code. Keep API calls behind a small shared transport boundary and feature-owned API functions rather than scattering `fetch` calls across visual components.
 
 ### Core UI Components
 

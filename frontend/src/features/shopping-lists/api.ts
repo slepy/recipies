@@ -64,6 +64,11 @@ export function getShoppingLists(accessToken: string, planId: number) {
   return apiRequest<ShoppingListSummary[]>(accessToken, `${listsPath}?plan=${planId}`, {}, "Nie udało się wczytać list.")
 }
 
+// Every list of the user: plan lists and recipe set lists (plan is null for a set's list).
+export function getAllShoppingLists(accessToken: string) {
+  return apiRequest<ShoppingListSummary[]>(accessToken, listsPath, {}, "Nie udało się wczytać list.")
+}
+
 export function getShoppingList(accessToken: string, listId: number) {
   return apiRequest<ShoppingList>(accessToken, `${listsPath}${listId}/`, {}, "Nie udało się wczytać listy.")
 }

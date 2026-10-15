@@ -10,7 +10,7 @@ vi.mock("./api", () => ({ createRecipeSet: vi.fn(), getRecipeSets: vi.fn() }))
 
 function renderList(onOpenSet = vi.fn()) {
   render(
-    <RecipeSetList accessToken="token" accountEmail="cook@example.com" headerLinks={[]} onOpenSet={onOpenSet} onSignOut={vi.fn()} />,
+    <RecipeSetList accessToken="token" onOpenSet={onOpenSet} />,
   )
   return onOpenSet
 }

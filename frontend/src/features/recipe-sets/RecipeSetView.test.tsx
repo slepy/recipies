@@ -76,7 +76,7 @@ function list(items: ListItem[]): ShoppingList {
 
 function renderView(onBack = vi.fn()) {
   render(
-    <RecipeSetView accessToken="token" accountEmail="cook@example.com" headerLinks={[]} onBack={onBack} onSignOut={vi.fn()} setId={4} />,
+    <RecipeSetView accessToken="token" onBack={onBack} setId={4} />,
   )
   return onBack
 }

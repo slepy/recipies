@@ -2,20 +2,15 @@ import { FormEvent, ReactNode, useEffect, useState } from "react"
 
 import { getProviderConfiguration } from "../integrations/api"
 import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeDraft, RecipeInput } from "./api"
-import { imageAccept, imageFormatsHint, validateImage } from "./imageRules"
+import DishPhotoPicker from "./DishPhotoPicker"
+import { validateImage } from "./imageRules"
 import RecognitionImagePicker from "./RecognitionImagePicker"
 
 type RecipeWorkspaceProps = {
   accessToken: string
-  accountEmail: string
-  accountError: string
   onOpenIntegrations: () => void
-  onOpenPlans?: () => void
-  onOpenRecipeSets?: () => void
   // Extra actions shown on each recipe, such as "Dodaj do zestawu" from the recipe-sets feature.
   renderRecipeActions?: (recipe: Recipe) => ReactNode
-  onOpenIngredients?: () => void
-  onSignOut: () => void
 }
 
 // The form keeps the metric amount as text while it is being typed.
@@ -44,17 +39,7 @@ function ingredientSummary(ingredient: Ingredient) {
   return [ingredient.amount, ingredient.unit, ingredient.name, metric].filter(Boolean).join(" ")
 }
 
-export default function RecipeWorkspace({
-  accessToken,
-  accountEmail,
-  accountError,
-  onOpenIntegrations,
-  onOpenPlans,
-  onOpenRecipeSets,
-  renderRecipeActions,
-  onOpenIngredients,
-  onSignOut,
-}: RecipeWorkspaceProps) {
+export default function RecipeWorkspace({ accessToken, onOpenIntegrations, renderRecipeActions }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isProviderConfigured, setIsProviderConfigured] = useState(false)
   const [isProviderActive, setIsProviderActive] = useState(false)
@@ -257,40 +242,7 @@ export default function RecipeWorkspace({
   }
 
   return (
-    <main className="recipe-app">
-      <header className="recipe-topbar">
-        <a className="wordmark wordmark--dark" href="/" aria-label="Miska, strona główna">
-          miska<span>.</span>
-        </a>
-        <div className="recipe-account">
-          <span>{accountEmail}</span>
-          {onOpenPlans && (
-            <button className="text-button" type="button" onClick={onOpenPlans}>
-              Plany żywieniowe
-            </button>
-          )}
-          {onOpenRecipeSets && (
-            <button className="text-button" type="button" onClick={onOpenRecipeSets}>
-              Zestawy przepisów
-            </button>
-          )}
-          {onOpenIngredients && (
-            <button className="text-button" type="button" onClick={onOpenIngredients}>
-              Baza składników
-            </button>
-          )}
-          <button className="text-button" type="button" onClick={onOpenIntegrations}>
-            Integracje AI
-          </button>
-          <button className="text-button" type="button" onClick={onSignOut}>
-            Wyloguj się
-          </button>
-        </div>
-      </header>
-      {accountError && (
-        <p className="recipe-account-error" role="alert">{accountError}</p>
-      )}
-
+    <div className="page">
       {isCreating ? (
       <div className="recipe-workspace recipe-workspace--form">
         <section className="recipe-editor" aria-labelledby="recipe-heading">
@@ -353,31 +305,17 @@ export default function RecipeWorkspace({
                   value={description}
                 />
               </label>
-              <div className="recipe-photo-field">
-                <label className="recipe-field" htmlFor="recipe-photo">
-                  <span>Zdjęcie gotowego dania</span>
-                  <span className="recipe-photo-picker">
-                    <span>{dishPhoto ? dishPhoto.name : "Wybierz zdjęcie"}</span>
-                    <input
-                      accept={imageAccept}
-                      id="recipe-photo"
-                      onChange={(event) => selectDishPhoto(event.target.files?.[0])}
-                      type="file"
-                    />
-                  </span>
-                  <small>{imageFormatsHint}</small>
-                </label>
-                {photoError && <p className="form-error" role="alert">{photoError}</p>}
-                {dishPhotoPreview && (
-                  <div className="recipe-photo-preview">
-                    <img src={dishPhotoPreview} alt="Podgląd zdjęcia gotowego dania" />
-                    {isDishPhotoProposed && <small>Propozycja AI: wycięte z obrazu zdjęcie dania. Usuń je albo zastąp własnym.</small>}
-                    <button className="text-button" onClick={() => { setDishPhoto(null); setIsDishPhotoProposed(false) }} type="button">
-                      Usuń zdjęcie
-                    </button>
-                  </div>
-                )}
-              </div>
+              <DishPhotoPicker
+                error={photoError}
+                file={dishPhoto}
+                isProposed={isDishPhotoProposed}
+                onRemove={() => {
+                  setDishPhoto(null)
+                  setIsDishPhotoProposed(false)
+                }}
+                onSelect={selectDishPhoto}
+                previewUrl={dishPhotoPreview}
+              />
               <div className="recipe-number-grid">
                 <label className="recipe-field" htmlFor="recipe-servings">
                   <span>Porcje</span>
@@ -548,11 +486,11 @@ export default function RecipeWorkspace({
       </div>
       ) : (
         <section className="recipe-home" aria-labelledby="collection-heading">
-          <div className="recipe-home__heading">
+          <div className="page-header">
             <div>
               <span className="eyebrow">ZAPISANE NA TWOIM KONCIE</span>
               <h1 id="collection-heading">Moje przepisy</h1>
-              <p className="recipe-intro">Twoja kolekcja sprawdzonych pomysłów na codzienne gotowanie.</p>
+              <p className="page-intro">Twoja kolekcja sprawdzonych pomysłów na codzienne gotowanie.</p>
             </div>
             <button className="primary-button" onClick={startNewRecipe} type="button">
               + Dodaj nowy
@@ -574,8 +512,12 @@ export default function RecipeWorkspace({
             <div className="recipe-list">
               {recipes.map((recipe) => (
                 <article className="recipe-entry" key={recipe.id}>
-                  {recipePhotoUrls[recipe.id] && (
+                  {recipePhotoUrls[recipe.id] ? (
                     <img className="recipe-entry__photo" src={recipePhotoUrls[recipe.id]} alt={recipe.title} />
+                  ) : (
+                    <div className="recipe-entry__photo recipe-entry__photo--empty" aria-hidden="true">
+                      {recipe.title.charAt(0).toUpperCase()}
+                    </div>
                   )}
                   <div className="recipe-entry-heading">
                     <div>
@@ -593,17 +535,22 @@ export default function RecipeWorkspace({
                       {recipe.cook_time_minutes !== null && ` · Gotowanie ${recipe.cook_time_minutes} min`}
                     </p>
                   )}
-                  {recipe.ingredients.length > 0 && (
-                    <ul className="recipe-entry-ingredients">
-                      {recipe.ingredients.map((ingredient, index) => (
-                        <li key={`${ingredient.name}-${index}`}>{ingredientSummary(ingredient)}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {recipe.steps.length > 0 && (
-                    <ol className="recipe-entry-steps">
-                      {recipe.steps.map((step, index) => <li key={index}>{step}</li>)}
-                    </ol>
+                  {(recipe.ingredients.length > 0 || recipe.steps.length > 0) && (
+                    <details className="recipe-entry-details">
+                      <summary>Składniki i przygotowanie</summary>
+                      {recipe.ingredients.length > 0 && (
+                        <ul className="recipe-entry-ingredients">
+                          {recipe.ingredients.map((ingredient, index) => (
+                            <li key={`${ingredient.name}-${index}`}>{ingredientSummary(ingredient)}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {recipe.steps.length > 0 && (
+                        <ol className="recipe-entry-steps">
+                          {recipe.steps.map((step, index) => <li key={index}>{step}</li>)}
+                        </ol>
+                      )}
+                    </details>
                   )}
                   {renderRecipeActions?.(recipe)}
                 </article>
@@ -612,6 +559,6 @@ export default function RecipeWorkspace({
           )}
         </section>
       )}
-    </main>
+    </div>
   )
 }

@@ -51,8 +51,9 @@ function EntryRow({ entry, isBusy, isChecked, showCheckbox, onToggle, onChangeSe
       <div className="plan-entry__body">
         <strong>{entry.recipe.title}</strong>
         <label className="plan-entry__servings">
-          <span>Porcje: {entry.recipe.title}</span>
+          <span>Porcje</span>
           <input
+            aria-label={`Porcje: ${entry.recipe.title}`}
             max={99}
             min={1}
             onBlur={commit}
@@ -71,8 +72,8 @@ function EntryRow({ entry, isBusy, isChecked, showCheckbox, onToggle, onChangeSe
           </ul>
         </details>
       </div>
-      <button className="text-button" disabled={isBusy} onClick={onRemove} type="button">
-        Usuń wpis: {entry.recipe.title}
+      <button className="text-button text-button--danger" disabled={isBusy} onClick={onRemove} type="button">
+        Usuń<span className="visually-hidden"> wpis: {entry.recipe.title}</span>
       </button>
     </li>
   )
@@ -123,11 +124,11 @@ export default function MealSection({
         )}
         {!meal.is_default && !isRenaming && (
           <>
-            <button className="text-button" onClick={() => setIsRenaming(true)} type="button">
-              Zmień nazwę: {meal.name}
+            <button aria-label={`Zmień nazwę: ${meal.name}`} className="text-button" onClick={() => setIsRenaming(true)} type="button">
+              Zmień nazwę
             </button>
-            <button className="text-button" disabled={isBusy} onClick={() => onRemoveMeal(meal)} type="button">
-              Usuń posiłek: {meal.name}
+            <button className="text-button text-button--danger" disabled={isBusy} onClick={() => onRemoveMeal(meal)} type="button">
+              Usuń<span className="visually-hidden"> posiłek: {meal.name}</span>
             </button>
           </>
         )}
@@ -161,7 +162,7 @@ export default function MealSection({
         />
       ) : (
         <button className="secondary-button" onClick={() => setIsPicking(true)} type="button">
-          Dodaj przepis do: {meal.name}
+          Dodaj przepis<span className="visually-hidden"> do: {meal.name}</span>
         </button>
       )}
     </section>

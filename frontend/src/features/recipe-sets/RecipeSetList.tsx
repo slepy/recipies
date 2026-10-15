@@ -1,25 +1,15 @@
 import { FormEvent, useEffect, useState } from "react"
 
 import { ApiError } from "../../shared/api/client"
-import PageHeader, { HeaderLink } from "../../shared/ui/PageHeader"
+import { plural } from "../../shared/lib/plural"
 import { createRecipeSet, getRecipeSets, RecipeSetSummary } from "./api"
 
 type RecipeSetListProps = {
   accessToken: string
-  accountEmail: string
-  headerLinks: HeaderLink[]
-  onSignOut: () => void
   onOpenSet: (setId: number) => void
 }
 
-function recipeCount(count: number) {
-  if (count === 1) return "1 przepis"
-  const lastDigit = count % 10
-  const lastTwo = count % 100
-  return lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14) ? `${count} przepisy` : `${count} przepisów`
-}
-
-export default function RecipeSetList({ accessToken, accountEmail, headerLinks, onSignOut, onOpenSet }: RecipeSetListProps) {
+export default function RecipeSetList({ accessToken, onOpenSet }: RecipeSetListProps) {
   const [recipeSets, setRecipeSets] = useState<RecipeSetSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -66,50 +56,52 @@ export default function RecipeSetList({ accessToken, accountEmail, headerLinks, 
   }
 
   return (
-    <main className="recipe-app">
-      <PageHeader accountEmail={accountEmail} links={headerLinks} onSignOut={onSignOut} />
-      <div className="recipe-home plan-page">
-        <h1>Zestawy przepisów</h1>
-        <p className="recipe-intro">Wybierz przepisy, a zestaw zbierze ich składniki w jedną listę zakupów.</p>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <span className="eyebrow">ZAKUPY BEZ PLANU</span>
+          <h1>Zestawy przepisów</h1>
+          <p className="page-intro">Wybierz przepisy, a zestaw zbierze ich składniki w jedną listę zakupów.</p>
+        </div>
+      </header>
 
-        <section aria-labelledby="new-set-heading" className="plan-card">
-          <h2 id="new-set-heading">Nowy zestaw</h2>
-          <form className="plan-form" onSubmit={submitSet} noValidate>
-            <label className="field" htmlFor="set-name">
-              <span>Nazwa zestawu</span>
-              <input
-                aria-invalid={nameError ? true : undefined}
-                id="set-name"
-                maxLength={200}
-                onChange={(event) => setName(event.target.value)}
-                value={name}
-              />
-              {nameError && <small className="form-error" role="alert">{nameError}</small>}
-            </label>
-            {formError && <p className="form-error" role="alert">{formError}</p>}
-            <button className="primary-button" disabled={isSaving} type="submit">
-              {isSaving ? "Chwila..." : "Utwórz zestaw"}
-            </button>
-          </form>
-        </section>
+      <section aria-labelledby="new-set-heading" className="plan-card">
+        <h2 id="new-set-heading">Nowy zestaw</h2>
+        <form className="plan-form" onSubmit={submitSet} noValidate>
+          <label className="field" htmlFor="set-name">
+            <span>Nazwa zestawu</span>
+            <input
+              aria-invalid={nameError ? true : undefined}
+              id="set-name"
+              maxLength={200}
+              onChange={(event) => setName(event.target.value)}
+              value={name}
+            />
+            {nameError && <small className="form-error" role="alert">{nameError}</small>}
+          </label>
+          {formError && <p className="form-error" role="alert">{formError}</p>}
+          <button className="primary-button" disabled={isSaving} type="submit">
+            {isSaving ? "Chwila..." : "Utwórz zestaw"}
+          </button>
+        </form>
+      </section>
 
-        <section aria-labelledby="sets-heading">
-          <h2 id="sets-heading">Moje zestawy</h2>
-          {isLoading && <p role="status">Wczytuję zestawy...</p>}
-          {loadError && <p className="form-error" role="alert">{loadError}</p>}
-          {!isLoading && !loadError && recipeSets.length === 0 && <p>Nie masz jeszcze żadnego zestawu.</p>}
-          <ul className="plan-list">
-            {recipeSets.map((recipeSet) => (
-              <li key={recipeSet.id}>
-                <button className="plan-list__item" onClick={() => onOpenSet(recipeSet.id)} type="button">
-                  <strong>{recipeSet.name}</strong>
-                  <span>{recipeCount(recipeSet.recipe_count)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-    </main>
+      <section aria-labelledby="sets-heading">
+        <h2 id="sets-heading">Moje zestawy</h2>
+        {isLoading && <p role="status">Wczytuję zestawy...</p>}
+        {loadError && <p className="form-error" role="alert">{loadError}</p>}
+        {!isLoading && !loadError && recipeSets.length === 0 && <p>Nie masz jeszcze żadnego zestawu.</p>}
+        <ul className="plan-list">
+          {recipeSets.map((recipeSet) => (
+            <li key={recipeSet.id}>
+              <button className="plan-list__item" onClick={() => onOpenSet(recipeSet.id)} type="button">
+                <strong>{recipeSet.name}</strong>
+                <span>{plural(recipeSet.recipe_count, "przepis", "przepisy", "przepisów")}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   )
 }
