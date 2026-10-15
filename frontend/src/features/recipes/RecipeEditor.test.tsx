@@ -163,6 +163,24 @@ describe("recipe editor", () => {
     expect(vi.mocked(updateRecipe).mock.calls[1][2]).toMatchObject({ remove_photo: true })
   })
 
+  it("can remove a saved photo whose preview did not load", async () => {
+    const user = userEvent.setup()
+    vi.mocked(getRecipe).mockResolvedValue({ ...savedRecipe, photo_url: "/api/recipes/12/photo/" })
+    vi.mocked(getRecipePhoto).mockRejectedValue(new ApiError("Nie udało się pobrać zdjęcia."))
+    renderEditor()
+
+    expect(await screen.findByText("Zapisane zdjęcie dania")).toBeInTheDocument()
+    expect(screen.getByText(/Nie udało się wczytać podglądu/)).toBeInTheDocument()
+    expect(screen.queryByRole("img", { name: "Podgląd zdjęcia gotowego dania" })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Usuń zdjęcie" }))
+    expect(screen.queryByText("Zapisane zdjęcie dania")).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Zapisz zmiany" }))
+
+    await waitFor(() => expect(updateRecipe).toHaveBeenCalledOnce())
+    expect(vi.mocked(updateRecipe).mock.calls[0][2]).toMatchObject({ remove_photo: true })
+  })
+
   it("replaces the saved photo with a new one", async () => {
     const user = userEvent.setup()
     vi.mocked(getRecipe).mockResolvedValue({ ...savedRecipe, photo_url: "/api/recipes/12/photo/" })

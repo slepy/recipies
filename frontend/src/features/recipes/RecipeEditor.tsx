@@ -80,6 +80,7 @@ export default function RecipeEditor({ accessToken, recipeId, onBack }: RecipeEd
                 initialValues={loaded.recipe}
                 onCancel={onBack}
                 onSubmit={saveChanges}
+                hasSavedPhoto={Boolean(loaded.recipe.photo_url)}
                 savedPhotoUrl={loaded.photoUrl}
                 submitLabel="Zapisz zmiany"
               />

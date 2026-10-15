@@ -18,13 +18,13 @@
 | FR-004 wejście w edycję | ✅ Zrobione | Przycisk „Edytuj” na karcie, trasa `/recipes/:recipeId/edit` (`RecipeEditRoute`), nieliczbowy id → `/recipes` |
 | FR-005 formularz edycji | ✅ Zrobione | `RecipeEditor` + wspólny `RecipeForm` (także dla dodawania); bez sekcji AI |
 | FR-006 wpływ na plany i listy | ✅ Zrobione | Komunikat nad formularzem edycji |
-| Fazy (sekcja 11) | 1–4 zrobione | Pełne zestawy: backend 226 testów, frontend 120 testów, `npm run build` bez błędów |
+| Fazy (sekcja 11) | 1–4 zrobione | Pełne zestawy: backend 227 testów, frontend 122 testy, `npm run build` bez błędów |
 
 **Znane problemy:**
 
-- Jeśli zapisane zdjęcie nie da się pobrać, formularz go nie pokazuje i nie można go usunąć w tej edycji; zapis je zostawia.
-- Wyjście z formularza dodawania („← Moje przepisy”) gubi wpisane dane, bo formularz jest teraz osobnym komponentem. Wcześniej stan zostawał w `RecipeWorkspace`.
 - Ręczny test w przeglądarce i test dostępności nie były wykonane.
+
+Naprawione w przeglądzie PR: zapisane składniki bez części pól (starsze przepisy bez miary metrycznej), treść JSON niebędąca obiektem (400 zamiast 500), utrata danych po wyjściu z formularza dodawania, brak możliwości usunięcia zdjęcia, którego podgląd się nie wczytał.
 
 **Następny krok:** przegląd PR.
 

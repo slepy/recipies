@@ -156,6 +156,7 @@ describe("recipe workspace", () => {
     await user.click(screen.getByRole("button", { name: "← Moje przepisy" }))
     await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Tytuł/)).toHaveValue("Mój przepis")
   })
 
   it("shows backend errors on the collection, not in the add form", async () => {

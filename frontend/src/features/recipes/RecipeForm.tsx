@@ -11,8 +11,12 @@ type RecipeFormProps = {
   // A photo that is not saved yet, such as the dish cut out of a recognised image.
   initialPhoto?: File | null
   isInitialPhotoProposed?: boolean
-  // Preview URL of the photo the recipe already has; the form can keep, replace or remove it.
+  // The recipe already has a photo; the form can keep, replace or remove it.
+  hasSavedPhoto?: boolean
+  // Preview of the saved photo; empty when it could not be loaded.
   savedPhotoUrl?: string
+  // A hidden form keeps its values but drops its messages, so they do not greet the user on return.
+  hidden?: boolean
   submitLabel: string
   // Throws to show its message under the form; the typed values stay.
   onSubmit: (recipe: RecipeInput) => Promise<void>
@@ -48,7 +52,9 @@ export default function RecipeForm({
   initialValues,
   initialPhoto = null,
   isInitialPhotoProposed = false,
+  hasSavedPhoto = false,
   savedPhotoUrl = "",
+  hidden = false,
   submitLabel,
   onSubmit,
   onCancel,
@@ -64,11 +70,17 @@ export default function RecipeForm({
   const [steps, setSteps] = useState<string[]>(initialValues?.steps.length ? initialValues.steps : [""])
   const [dishPhoto, setDishPhoto] = useState<File | null>(initialPhoto)
   const [isDishPhotoProposed, setIsDishPhotoProposed] = useState(isInitialPhotoProposed)
-  const [keepsSavedPhoto, setKeepsSavedPhoto] = useState(Boolean(savedPhotoUrl))
+  const [keepsSavedPhoto, setKeepsSavedPhoto] = useState(hasSavedPhoto)
   const [dishPhotoPreview, setDishPhotoPreview] = useState("")
   const [photoError, setPhotoError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (!hidden) return
+    setError("")
+    setPhotoError("")
+  }, [hidden])
 
   useEffect(() => {
     if (!dishPhoto) {
@@ -135,7 +147,7 @@ export default function RecipeForm({
       steps: steps.map((step) => step.trim()).filter(Boolean),
     }
     if (dishPhoto) recipeInput.photo = dishPhoto
-    else if (savedPhotoUrl && !keepsSavedPhoto) recipeInput.remove_photo = true
+    else if (hasSavedPhoto && !keepsSavedPhoto) recipeInput.remove_photo = true
 
     try {
       await onSubmit(recipeInput)
@@ -176,6 +188,7 @@ export default function RecipeForm({
           isProposed={isDishPhotoProposed}
           onRemove={removeDishPhoto}
           onSelect={selectDishPhoto}
+          hasSavedPhoto={!dishPhoto && keepsSavedPhoto}
           previewUrl={dishPhotoPreview || (keepsSavedPhoto ? savedPhotoUrl : "")}
         />
         <div className="recipe-number-grid">

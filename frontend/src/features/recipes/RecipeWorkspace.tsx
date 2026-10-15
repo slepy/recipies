@@ -133,8 +133,6 @@ export default function RecipeWorkspace({
 
   function startNewRecipe() {
     setNotice("")
-    setFormDraft(null)
-    setFormKey((current) => current + 1)
     setIsCreating(true)
   }
 
@@ -142,15 +140,17 @@ export default function RecipeWorkspace({
     setNotice("")
     const recipe = await createRecipe(accessToken, recipeInput)
     setRecipes((current) => [recipe, ...current])
+    // A saved recipe empties the form for the next one.
     setFormDraft(null)
+    setFormKey((current) => current + 1)
     setNotice("Przepis został zapisany w Twojej kolekcji.")
     setIsCreating(false)
   }
 
   return (
     <div className="page">
-      {isCreating ? (
-      <div className="recipe-workspace recipe-workspace--form">
+      {/* Hidden rather than removed, so leaving the add form keeps what was typed. */}
+      <div className="recipe-workspace recipe-workspace--form" hidden={!isCreating}>
         <section className="recipe-editor" aria-labelledby="recipe-heading">
           <button className="text-button recipe-back" onClick={() => setIsCreating(false)} type="button">
             ← Moje przepisy
@@ -192,13 +192,14 @@ export default function RecipeWorkspace({
             initialPhoto={formDraft?.photo}
             initialValues={formDraft?.values}
             isInitialPhotoProposed={Boolean(formDraft?.photo)}
+            hidden={!isCreating}
             key={formKey}
             onSubmit={saveRecipe}
             submitLabel="Zapisz przepis"
           />
         </section>
       </div>
-      ) : (
+      {!isCreating && (
         <section className="recipe-home" aria-labelledby="collection-heading">
           <div className="page-header">
             <div>
