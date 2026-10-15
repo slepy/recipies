@@ -18,6 +18,8 @@ type ShoppingListItemsProps = {
   // True while the owning screen saves something else, such as a refresh.
   disabled?: boolean
   onListChange: (list: ShoppingList) => void
+  // Lets the owning screen block its own actions (refresh, delete) while an item change is saved.
+  onBusyChange?: (busy: boolean) => void
 }
 
 const metricUnits = ["g", "kg", "ml", "l"] as const
@@ -136,7 +138,13 @@ function ItemRow({ item, isBusy, onToggle, onDelete, onIncrease, onResetIncrease
 
 // The items of one list: active ones, the custom item form, then bought ones. Used by the plan
 // list screen and by the "Lista zakupów" tab of a recipe set.
-export default function ShoppingListItems({ accessToken, list, disabled = false, onListChange }: ShoppingListItemsProps) {
+export default function ShoppingListItems({
+  accessToken,
+  list,
+  disabled = false,
+  onListChange,
+  onBusyChange,
+}: ShoppingListItemsProps) {
   const [error, setError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [name, setName] = useState("")
@@ -151,6 +159,7 @@ export default function ShoppingListItems({ accessToken, list, disabled = false,
   async function run(action: () => Promise<unknown>) {
     setError("")
     setIsSaving(true)
+    onBusyChange?.(true)
     try {
       await action()
       onListChange(await getShoppingList(accessToken, listId))
@@ -158,6 +167,7 @@ export default function ShoppingListItems({ accessToken, list, disabled = false,
       setError(actionError instanceof Error ? actionError.message : "Nie udało się zapisać zmian.")
     } finally {
       setIsSaving(false)
+      onBusyChange?.(false)
     }
   }
 

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -223,6 +223,19 @@ describe("shopping list view", () => {
     expect(refreshShoppingList).toHaveBeenCalledWith("token", 8)
     expect(await screen.findByText("makaron 800 g")).toBeInTheDocument()
     expect(screen.queryByText("Plan zmienił się od wygenerowania listy.")).not.toBeInTheDocument()
+  })
+
+  it("blocks the refresh while an item change is being saved", async () => {
+    vi.mocked(getShoppingList).mockResolvedValue(list([item({})], { is_stale: true }))
+    let finishSave: (saved: ListItem) => void = () => {}
+    vi.mocked(setItemBought).mockReturnValue(new Promise((resolve) => { finishSave = resolve }))
+    renderList()
+
+    await userEvent.click(await screen.findByRole("checkbox"))
+
+    expect(screen.getByRole("button", { name: "Odśwież z planu" })).toBeDisabled()
+    finishSave(item({ bought: true }))
+    await waitFor(() => expect(screen.getByRole("button", { name: "Odśwież z planu" })).toBeEnabled())
   })
 
   it("cancelling the preview leaves the list untouched", async () => {

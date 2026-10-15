@@ -1,5 +1,8 @@
+from django.http import Http404
 from django.test import TestCase
 
+from recipe_sets.models import RecipeSet
+from recipe_sets.services import RecipeSetUpdater
 from tests.support import client_for, create_recipe, create_user
 
 
@@ -75,3 +78,12 @@ class RecipeSetRecipesApiTests(TestCase):
         self.assertEqual(patched.status_code, 400)
         self.assertEqual(added.status_code, 400)
         self.assertEqual(self.recipe_ids(), [])
+
+    def test_saving_a_set_deleted_in_the_meantime_is_not_found(self):
+        recipe_set = RecipeSet.objects.get(pk=self.recipe_set["id"])
+        RecipeSet.objects.filter(pk=recipe_set.pk).delete()
+
+        with self.assertRaises(Http404):
+            RecipeSetUpdater().update(recipe_set, name="Nowa")
+        with self.assertRaises(Http404):
+            RecipeSetUpdater().add_recipe(recipe_set, self.soup)

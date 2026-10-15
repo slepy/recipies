@@ -27,6 +27,8 @@ export default function ShoppingListView({
   const [list, setList] = useState<ShoppingList | null>(null)
   const [error, setError] = useState("")
   const [isBusy, setIsBusy] = useState(false)
+  // An item change reloads the list when it finishes, so a refresh must not run at the same time.
+  const [isSavingItem, setIsSavingItem] = useState(false)
   const [preview, setPreview] = useState<RefreshPreview | null>(null)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
 
@@ -108,7 +110,7 @@ export default function ShoppingListView({
             {list.is_stale && !preview && (
               <section className="stale-notice" aria-label="Plan zmienił się">
                 <p>Plan zmienił się od wygenerowania listy.</p>
-                <button className="secondary-button" disabled={isBusy} onClick={showPreview} type="button">
+                <button className="secondary-button" disabled={isBusy || isSavingItem} onClick={showPreview} type="button">
                   Odśwież z planu
                 </button>
               </section>
@@ -117,7 +119,7 @@ export default function ShoppingListView({
             {preview && (
               <ConfirmBar
                 confirmLabel="Odśwież listę"
-                isBusy={isBusy}
+                isBusy={isBusy || isSavingItem}
                 onCancel={() => setPreview(null)}
                 onConfirm={() => void applyRefresh()}
                 title="Odświeżyć listę z planu?"
@@ -134,7 +136,7 @@ export default function ShoppingListView({
             {isConfirmingDelete && (
               <ConfirmBar
                 confirmLabel="Usuń listę"
-                isBusy={isBusy}
+                isBusy={isBusy || isSavingItem}
                 onCancel={() => setIsConfirmingDelete(false)}
                 onConfirm={() => void removeList()}
                 title="Usunąć listę zakupów?"
@@ -143,7 +145,13 @@ export default function ShoppingListView({
               </ConfirmBar>
             )}
 
-            <ShoppingListItems accessToken={accessToken} disabled={isBusy} list={list} onListChange={setList} />
+            <ShoppingListItems
+              accessToken={accessToken}
+              disabled={isBusy}
+              list={list}
+              onBusyChange={setIsSavingItem}
+              onListChange={setList}
+            />
           </>
         )}
       </div>
