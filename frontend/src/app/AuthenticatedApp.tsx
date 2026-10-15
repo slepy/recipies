@@ -10,6 +10,7 @@ import ShoppingOverview from "../features/overview/ShoppingOverview"
 import AddToRecipeSet from "../features/recipe-sets/AddToRecipeSet"
 import RecipeSetList from "../features/recipe-sets/RecipeSetList"
 import RecipeSetView from "../features/recipe-sets/RecipeSetView"
+import RecipeEditor from "../features/recipes/RecipeEditor"
 import RecipeWorkspace from "../features/recipes/RecipeWorkspace"
 import ShoppingListView from "../features/shopping-lists/ShoppingListView"
 import AppShell, { NavItem } from "../shared/ui/AppShell"
@@ -63,6 +64,13 @@ function ListRoute({ accessToken }: { accessToken: string }) {
       onBackToPlan={(planId) => navigate(`/plans/${planId}`)}
     />
   )
+}
+
+function RecipeEditRoute({ accessToken }: { accessToken: string }) {
+  const navigate = useNavigate()
+  const recipeId = Number(useParams().recipeId)
+  if (!Number.isInteger(recipeId)) return <Navigate to="/recipes" replace />
+  return <RecipeEditor accessToken={accessToken} key={recipeId} onBack={() => navigate("/recipes")} recipeId={recipeId} />
 }
 
 function RecipeSetRoute({ accessToken }: { accessToken: string }) {
@@ -126,6 +134,7 @@ export default function AuthenticatedApp({ accessToken, accountEmail, accountErr
           element={
             <RecipeWorkspace
               accessToken={accessToken}
+              onEditRecipe={(recipeId) => navigate(`/recipes/${recipeId}/edit`)}
               onOpenIntegrations={() => navigate("/settings/integrations")}
               renderRecipeActions={(recipe) => (
                 <AddToRecipeSet accessToken={accessToken} recipeId={recipe.id} recipeTitle={recipe.title} />
@@ -133,6 +142,7 @@ export default function AuthenticatedApp({ accessToken, accountEmail, accountErr
             />
           }
         />
+        <Route path="/recipes/:recipeId/edit" element={<RecipeEditRoute accessToken={accessToken} />} />
         <Route
           path="/plans"
           element={<MealPlanList accessToken={accessToken} onOpenPlan={(planId) => navigate(`/plans/${planId}`)} />}

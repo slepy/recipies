@@ -7,6 +7,8 @@ type DishPhotoPickerProps = {
   previewUrl: string
   // True when the photo was cut out of a recognised image rather than chosen by the user.
   isProposed: boolean
+  // The recipe keeps a saved photo; without a preview URL it could not be loaded, but it can still be changed or removed.
+  hasSavedPhoto?: boolean
   error: string
   onSelect: (file: File) => void
   onRemove: () => void
@@ -15,7 +17,7 @@ type DishPhotoPickerProps = {
 const inputId = "recipe-photo"
 
 // The photo of the finished dish: a drop area while empty, a preview with "change" and "remove" once chosen.
-export default function DishPhotoPicker({ file, previewUrl, isProposed, error, onSelect, onRemove }: DishPhotoPickerProps) {
+export default function DishPhotoPicker({ file, previewUrl, isProposed, hasSavedPhoto = false, error, onSelect, onRemove }: DishPhotoPickerProps) {
   const [isDragging, setIsDragging] = useState(false)
 
   function drop(event: DragEvent<HTMLElement>) {
@@ -50,11 +52,12 @@ export default function DishPhotoPicker({ file, previewUrl, isProposed, error, o
         type="file"
       />
 
-      {previewUrl ? (
+      {previewUrl || hasSavedPhoto ? (
         <div className="photo-picker__preview" onDragLeave={() => setIsDragging(false)} onDragOver={dragOver} onDrop={drop}>
-          <img src={previewUrl} alt="Podgląd zdjęcia gotowego dania" />
+          {previewUrl && <img src={previewUrl} alt="Podgląd zdjęcia gotowego dania" />}
           <div className="photo-picker__details">
-            <strong>{isProposed ? "Zdjęcie z rozpoznanego obrazu" : file?.name}</strong>
+            <strong>{isProposed ? "Zdjęcie z rozpoznanego obrazu" : (file?.name ?? "Zapisane zdjęcie dania")}</strong>
+            {!previewUrl && <small>Nie udało się wczytać podglądu. Możesz zostawić zdjęcie, zmienić je albo usunąć.</small>}
             {isProposed && <small>Propozycja AI: wycięte z obrazu zdjęcie dania. Usuń je albo zastąp własnym.</small>}
             <div className="photo-picker__actions">
               <label className="secondary-button" htmlFor={inputId}>Zmień zdjęcie</label>
