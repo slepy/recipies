@@ -17,6 +17,14 @@ class IngredientSerializer(serializers.Serializer):
     metric_amount = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=1000000)
     metric_unit = serializers.ChoiceField(choices=METRIC_UNITS, required=False, allow_blank=True)
 
+    def validate(self, ingredient):
+        # Half a measure cannot be summed on a shopping list, so require the number and the unit together.
+        has_amount = ingredient.get("metric_amount") is not None
+        has_unit = bool(ingredient.get("metric_unit"))
+        if has_amount != has_unit:
+            raise serializers.ValidationError("Podaj jednocześnie wagę lub objętość i miarę.")
+        return ingredient
+
 
 class RecipeSerializer(serializers.ModelSerializer):
     photo = serializers.ImageField(

@@ -70,6 +70,17 @@ class RecipeCollectionApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Recipe.objects.exists())
 
+    def test_rejects_a_metric_measure_with_only_one_part(self):
+        for measure in ({"metric_amount": 90}, {"metric_amount": None, "metric_unit": "g"}):
+            response = self.client.post(
+                "/api/recipes/",
+                {"title": "Zupa", "ingredients": [{"name": "chleb", **measure}]},
+                format="json",
+            )
+
+            self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recipe.objects.exists())
+
     def test_title_is_required_but_other_fields_may_be_empty(self):
         empty_recipe = self.client.post("/api/recipes/", {"title": "  "}, format="json")
         self.assertEqual(empty_recipe.status_code, 400)

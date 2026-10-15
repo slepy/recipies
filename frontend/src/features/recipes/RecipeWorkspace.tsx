@@ -212,7 +212,7 @@ export default function RecipeWorkspace({
         .map((ingredient) => {
           const metricAmount = optionalNumber(ingredient.metric_amount.trim().replace(",", "."))
           // a metric measure needs both the number and the unit to be summed later
-          const hasMetric = metricAmount !== null && Boolean(ingredient.metric_unit)
+          const hasMetric = metricAmount !== null && Number.isFinite(metricAmount) && Boolean(ingredient.metric_unit)
           return {
             name: ingredient.name.trim(),
             amount: ingredient.amount.trim(),

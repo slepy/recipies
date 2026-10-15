@@ -92,6 +92,25 @@ describe("recipe workspace", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Przepis został zapisany w Twojej kolekcji.")
   })
 
+  it("drops a metric measure whose amount is not a number", async () => {
+    const user = userEvent.setup()
+    vi.mocked(createRecipe).mockResolvedValue(savedRecipe)
+    renderWorkspace()
+
+    await screen.findByRole("heading", { name: "Moje przepisy" })
+    await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
+    await user.type(screen.getByLabelText(/Tytuł/), "Chleb")
+    await user.type(screen.getByLabelText("Składnik 1"), "mąka")
+    await user.type(screen.getByLabelText("Waga lub objętość"), "abc")
+    await user.selectOptions(screen.getByLabelText("Miara"), "g")
+    await user.click(screen.getByRole("button", { name: "Zapisz przepis" }))
+
+    await waitFor(() => expect(createRecipe).toHaveBeenCalledOnce())
+    expect(vi.mocked(createRecipe).mock.calls[0][1].ingredients).toEqual([
+      { name: "mąka", amount: "", unit: "", metric_amount: null, metric_unit: "" },
+    ])
+  })
+
   it("shows a save error and preserves the entered title", async () => {
     const user = userEvent.setup()
     vi.mocked(createRecipe).mockRejectedValue(new Error("Serwer jest niedostępny."))
