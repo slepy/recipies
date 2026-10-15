@@ -13,4 +13,5 @@ urlpatterns = [
 	path("api/auth/logout/", LogoutView.as_view(), name="auth-logout"),
 	path("api/auth/me/", CurrentUserView.as_view(), name="auth-me"),
 	path("api/integrations/", include("integrations.urls")),
+	path("api/recipes/", include("recipes.urls")),
 ]

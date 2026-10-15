@@ -6,7 +6,7 @@ export type ProviderConfiguration = {
   is_active: boolean
 }
 
-const integrationsPath = "/api/integrations/ai"
+const integrationsPath = "/api/integrations/ai/"
 
 async function readResponse(response: Response) {
   const payload: unknown = await response.json().catch(() => ({}))
@@ -48,7 +48,7 @@ export async function saveProviderConfiguration(
 }
 
 export async function activateProvider(accessToken: string) {
-  return (await request(`${integrationsPath}/activate/`, accessToken, {
+  return (await request(`${integrationsPath}activate/`, accessToken, {
     method: "POST",
   })) as ProviderConfiguration
 }

@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { act, fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import App from "../../App"
 import { getCurrentUser, logIn, logOut, refreshAccessToken, register } from "./api"
 import { getProviderConfiguration } from "../integrations/api"
+import { getRecipes } from "../recipes/api"
 
 vi.mock("./api", () => ({
   getCurrentUser: vi.fn(),
@@ -20,10 +21,20 @@ vi.mock("../integrations/api", () => ({
   saveProviderConfiguration: vi.fn(),
 }))
 
+vi.mock("../recipes/api", () => ({
+  createRecipe: vi.fn(),
+  getRecipes: vi.fn(),
+}))
+
 describe("account access screen", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(refreshAccessToken).mockResolvedValue(null)
+    vi.mocked(getRecipes).mockResolvedValue([])
   })
 
   it("provides labeled login fields and switches to registration", async () => {
@@ -50,10 +61,34 @@ describe("account access screen", () => {
     fireEvent.change(screen.getByLabelText(/^Hasło/), { target: { value: "a-long-unique-password" } })
     fireEvent.click(screen.getByRole("button", { name: "Utwórz konto" }))
 
-    expect(await screen.findByText("Jesteś zalogowany jako cook@example.com.")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Moje przepisy" })).toBeInTheDocument()
+    expect(screen.getByText("cook@example.com")).toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "Miska, przepisy na co dzień" })).not.toBeInTheDocument()
     expect(register).toHaveBeenCalledWith("cook@example.com", "a-long-unique-password")
     expect(logIn).not.toHaveBeenCalled()
     expect(logOut).not.toHaveBeenCalled()
+  })
+
+  it("refreshes the access token before it expires", async () => {
+    vi.useFakeTimers()
+    vi.mocked(refreshAccessToken)
+      .mockResolvedValueOnce("initial-access-token")
+      .mockResolvedValueOnce("renewed-access-token")
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: 1, email: "cook@example.com" })
+    render(<App />)
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByRole("heading", { name: "Moje przepisy" })).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(23 * 60 * 60 * 1000)
+    })
+
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2)
   })
 
   it("opens AI integration settings from the signed-in view", async () => {
@@ -66,10 +101,23 @@ describe("account access screen", () => {
     })
     render(<App />)
 
-    expect(await screen.findByText("Jesteś zalogowany jako cook@example.com.")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Moje przepisy" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Integracje AI" }))
 
     expect(await screen.findByRole("heading", { name: "Integracje AI" })).toBeInTheDocument()
     expect(await screen.findByText("Nie skonfigurowano dostawcy AI")).toBeInTheDocument()
+  })
+
+  it("shows a sign-out error without leaving the recipe workspace", async () => {
+    vi.mocked(refreshAccessToken).mockResolvedValue("memory-access-token")
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: 1, email: "cook@example.com" })
+    vi.mocked(logOut).mockRejectedValue(new Error("Session could not be closed."))
+    render(<App />)
+
+    expect(await screen.findByRole("heading", { name: "Moje przepisy" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Wyloguj się" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się zakończyć sesji. Spróbuj ponownie.")
+    expect(screen.getByRole("heading", { name: "Moje przepisy" })).toBeInTheDocument()
   })
 })

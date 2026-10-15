@@ -9,6 +9,7 @@ import {
   register,
 } from "./features/accounts/api"
 import IntegrationSettings from "./features/integrations/IntegrationSettings"
+import RecipeWorkspace from "./features/recipes/RecipeWorkspace"
 
 type FormMode = "login" | "register"
 type AuthState = "loading" | "anonymous" | "authenticated"
@@ -55,6 +56,29 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!accessToken) return
+
+    let isCurrent = true
+    const refreshTimer = window.setTimeout(async () => {
+      const token = await refreshAccessToken()
+      if (!isCurrent) return
+      if (token) {
+        setAccessToken(token)
+        return
+      }
+
+      setAccessToken(null)
+      setAccount(null)
+      setAuthState("anonymous")
+    }, 23 * 60 * 60 * 1000)
+
+    return () => {
+      isCurrent = false
+      window.clearTimeout(refreshTimer)
+    }
+  }, [accessToken])
+
   async function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError("")
@@ -87,6 +111,29 @@ export default function App() {
     }
   }
 
+  if (authState === "authenticated" && account && accessToken) {
+    if (showIntegrations) {
+      return (
+        <main className="recipe-app integration-page">
+          <IntegrationSettings
+            accessToken={accessToken}
+            onBack={() => setShowIntegrations(false)}
+          />
+        </main>
+      )
+    }
+
+    return (
+      <RecipeWorkspace
+        accessToken={accessToken}
+        accountEmail={account.email}
+        accountError={error}
+        onOpenIntegrations={() => setShowIntegrations(true)}
+        onSignOut={signOut}
+      />
+    )
+  }
+
   return (
     <main className="auth-layout">
       <section className="food-panel" aria-label="Miska, przepisy na co dzień">
@@ -109,32 +156,6 @@ export default function App() {
 
         {authState === "loading" ? (
           <p className="session-message" role="status">Sprawdzam sesję...</p>
-        ) : authState === "authenticated" && account && accessToken ? (
-          showIntegrations ? (
-            <IntegrationSettings
-              accessToken={accessToken}
-              onBack={() => setShowIntegrations(false)}
-            />
-          ) : (
-            <div className="form-content form-content--welcome">
-              <span className="eyebrow">TWOJA KUCHNIA</span>
-              <h1>Miło Cię widzieć.</h1>
-              <p className="form-intro">Jesteś zalogowany jako {account.email}.</p>
-              {error && <p className="form-error" role="alert">{error}</p>}
-              <div className="welcome-actions">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => setShowIntegrations(true)}
-                >
-                  Integracje AI
-                </button>
-                <button className="primary-button" type="button" onClick={signOut}>
-                  Wyloguj się
-                </button>
-              </div>
-            </div>
-          )
         ) : (
           <div className="form-content">
             <span className="eyebrow">{mode === "login" ? "WRÓĆ DO SWOJEJ KUCHNI" : "ZACZNIJ OD DOBREGO SMAKU"}</span>
