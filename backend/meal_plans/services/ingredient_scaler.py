@@ -20,9 +20,11 @@ def parse_amount(text):
 class IngredientScaler:
     """Scales recipe ingredients linearly: factor = entry servings / recipe servings (missing = 1)."""
 
+    def recipe_servings(self, recipe):
+        return recipe.servings if recipe.servings and recipe.servings > 0 else 1
+
     def factor(self, recipe, servings):
-        recipe_servings = recipe.servings if recipe.servings and recipe.servings > 0 else 1
-        return servings / recipe_servings
+        return servings / self.recipe_servings(recipe)
 
     def scale(self, recipe, servings):
         factor = self.factor(recipe, servings)

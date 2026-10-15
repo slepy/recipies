@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, ReactNode, useEffect, useState } from "react"
 
 import { getProviderConfiguration } from "../integrations/api"
 import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeDraft, RecipeInput } from "./api"
@@ -11,6 +11,9 @@ type RecipeWorkspaceProps = {
   accountError: string
   onOpenIntegrations: () => void
   onOpenPlans?: () => void
+  onOpenRecipeSets?: () => void
+  // Extra actions shown on each recipe, such as "Dodaj do zestawu" from the recipe-sets feature.
+  renderRecipeActions?: (recipe: Recipe) => ReactNode
   onSignOut: () => void
 }
 
@@ -46,6 +49,8 @@ export default function RecipeWorkspace({
   accountError,
   onOpenIntegrations,
   onOpenPlans,
+  onOpenRecipeSets,
+  renderRecipeActions,
   onSignOut,
 }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -260,6 +265,11 @@ export default function RecipeWorkspace({
           {onOpenPlans && (
             <button className="text-button" type="button" onClick={onOpenPlans}>
               Plany żywieniowe
+            </button>
+          )}
+          {onOpenRecipeSets && (
+            <button className="text-button" type="button" onClick={onOpenRecipeSets}>
+              Zestawy przepisów
             </button>
           )}
           <button className="text-button" type="button" onClick={onOpenIntegrations}>
@@ -588,6 +598,7 @@ export default function RecipeWorkspace({
                       {recipe.steps.map((step, index) => <li key={index}>{step}</li>)}
                     </ol>
                   )}
+                  {renderRecipeActions?.(recipe)}
                 </article>
               ))}
             </div>
