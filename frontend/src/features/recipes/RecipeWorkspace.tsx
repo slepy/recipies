@@ -13,9 +13,15 @@ type RecipeWorkspaceProps = {
   onSignOut: () => void
 }
 
-type IngredientDraft = Ingredient
+// The form keeps the metric amount as text while it is being typed.
+type IngredientDraft = Omit<Ingredient, "metric_amount"> & { metric_amount: string }
 
-const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "" }
+const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "", metric_amount: "", metric_unit: "" }
+const metricUnits = ["g", "kg", "ml", "l"] as const
+
+function toIngredientDraft(ingredient: Ingredient): IngredientDraft {
+  return { ...ingredient, metric_amount: ingredient.metric_amount === null ? "" : String(ingredient.metric_amount) }
+}
 
 function dataUrlToFile(dataUrl: string, name: string) {
   const [header, encoded] = dataUrl.split(",")
@@ -29,7 +35,8 @@ function optionalNumber(value: string) {
 }
 
 function ingredientSummary(ingredient: Ingredient) {
-  return [ingredient.amount, ingredient.unit, ingredient.name].filter(Boolean).join(" ")
+  const metric = ingredient.metric_amount ? `(${ingredient.metric_amount} ${ingredient.metric_unit})` : ""
+  return [ingredient.amount, ingredient.unit, ingredient.name, metric].filter(Boolean).join(" ")
 }
 
 export default function RecipeWorkspace({
@@ -174,7 +181,7 @@ export default function RecipeWorkspace({
     setServings(draft.servings === null ? "" : String(draft.servings))
     setPrepTime(draft.prep_time_minutes === null ? "" : String(draft.prep_time_minutes))
     setCookTime(draft.cook_time_minutes === null ? "" : String(draft.cook_time_minutes))
-    setIngredients(draft.ingredients.length > 0 ? draft.ingredients : [{ ...emptyIngredient }])
+    setIngredients(draft.ingredients.length > 0 ? draft.ingredients.map(toIngredientDraft) : [{ ...emptyIngredient }])
     setSteps(draft.steps.length > 0 ? draft.steps : [""])
     setPhotoError("")
     setDishPhoto(draft.dish_photo ? dataUrlToFile(draft.dish_photo, "propozycja-ai.jpg") : null)
@@ -202,12 +209,19 @@ export default function RecipeWorkspace({
       prep_time_minutes: optionalNumber(prepTime),
       cook_time_minutes: optionalNumber(cookTime),
       ingredients: ingredients
-        .map((ingredient) => ({
-          name: ingredient.name.trim(),
-          amount: ingredient.amount.trim(),
-          unit: ingredient.unit.trim(),
-        }))
-        .filter((ingredient) => ingredient.name || ingredient.amount || ingredient.unit),
+        .map((ingredient) => {
+          const metricAmount = optionalNumber(ingredient.metric_amount.trim().replace(",", "."))
+          // a metric measure needs both the number and the unit to be summed later
+          const hasMetric = metricAmount !== null && Boolean(ingredient.metric_unit)
+          return {
+            name: ingredient.name.trim(),
+            amount: ingredient.amount.trim(),
+            unit: ingredient.unit.trim(),
+            metric_amount: hasMetric ? metricAmount : null,
+            metric_unit: hasMetric ? ingredient.metric_unit : "",
+          } satisfies Ingredient
+        })
+        .filter((ingredient) => ingredient.name || ingredient.amount || ingredient.unit || ingredient.metric_amount),
       steps: steps.map((step) => step.trim()).filter(Boolean),
     }
     if (dishPhoto) recipeInput.photo = dishPhoto
@@ -459,6 +473,29 @@ export default function RecipeWorkspace({
                           onChange={(event) => updateIngredient(index, "unit", event.target.value)}
                           value={ingredient.unit}
                         />
+                      </label>
+                      <label className="recipe-field" htmlFor={`ingredient-metric-amount-${index}`}>
+                        <span>Waga lub objętość</span>
+                        <input
+                          id={`ingredient-metric-amount-${index}`}
+                          inputMode="decimal"
+                          maxLength={12}
+                          onChange={(event) => updateIngredient(index, "metric_amount", event.target.value)}
+                          value={ingredient.metric_amount}
+                        />
+                      </label>
+                      <label className="recipe-field" htmlFor={`ingredient-metric-unit-${index}`}>
+                        <span>Miara</span>
+                        <select
+                          id={`ingredient-metric-unit-${index}`}
+                          onChange={(event) => updateIngredient(index, "metric_unit", event.target.value)}
+                          value={ingredient.metric_unit}
+                        >
+                          <option value="">—</option>
+                          {metricUnits.map((unit) => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
                       </label>
                       {ingredients.length > 1 && (
                         <button

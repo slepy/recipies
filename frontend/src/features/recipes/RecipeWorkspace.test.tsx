@@ -25,7 +25,7 @@ const savedRecipe: Recipe = {
   servings: 3,
   prep_time_minutes: 10,
   cook_time_minutes: 25,
-  ingredients: [{ name: "pomidory", amount: "500", unit: "g" }],
+  ingredients: [{ name: "pomidory", amount: "500", unit: "g", metric_amount: null, metric_unit: "" }],
   steps: ["Ugotuj pomidory"],
   photo_url: null,
   created_at: "2026-10-14T12:00:00Z",
@@ -73,6 +73,8 @@ describe("recipe workspace", () => {
     await user.type(screen.getByLabelText("Składnik 1"), "pomidory")
     await user.type(screen.getByLabelText("Ilość"), "500")
     await user.type(screen.getByLabelText("Jednostka"), "g")
+    await user.type(screen.getByLabelText("Waga lub objętość"), "0,5")
+    await user.selectOptions(screen.getByLabelText("Miara"), "kg")
     await user.type(screen.getByLabelText("Krok 1"), "Ugotuj pomidory")
     await user.click(screen.getByRole("button", { name: "Zapisz przepis" }))
 
@@ -84,7 +86,7 @@ describe("recipe workspace", () => {
       servings: 3,
       prep_time_minutes: 10,
       cook_time_minutes: 25,
-      ingredients: [{ name: "pomidory", amount: "500", unit: "g" }],
+      ingredients: [{ name: "pomidory", amount: "500", unit: "g", metric_amount: 0.5, metric_unit: "kg" }],
       steps: ["Ugotuj pomidory"],
     })
     expect(await screen.findByRole("status")).toHaveTextContent("Przepis został zapisany w Twojej kolekcji.")
@@ -242,7 +244,7 @@ describe("recipe workspace", () => {
       servings: 4,
       prep_time_minutes: null,
       cook_time_minutes: 30,
-      ingredients: [{ name: "woda", amount: "1", unit: "l" }],
+      ingredients: [{ name: "woda", amount: "2", unit: "szklanki", metric_amount: 0.5, metric_unit: "l" as const }],
       steps: ["Gotuj"],
       // 1x1 transparent PNG
       dish_photo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -291,6 +293,8 @@ describe("recipe workspace", () => {
       expect(screen.getByLabelText("Porcje")).toHaveValue(4)
       expect(screen.getByLabelText("Przygotowanie (min)")).toHaveValue(null)
       expect(screen.getByLabelText("Składnik 1")).toHaveValue("woda")
+      expect(screen.getByLabelText("Waga lub objętość")).toHaveValue("0.5")
+      expect(screen.getByLabelText("Miara")).toHaveValue("l")
       expect(screen.getByLabelText("Krok 1")).toHaveValue("Gotuj")
       expect(screen.getByText(/Propozycja AI/)).toBeInTheDocument()
       expect(createRecipe).not.toHaveBeenCalled()

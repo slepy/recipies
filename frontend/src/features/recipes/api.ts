@@ -2,6 +2,8 @@ export type Ingredient = {
   name: string
   amount: string
   unit: string
+  metric_amount: number | null
+  metric_unit: "" | "g" | "kg" | "ml" | "l"
 }
 
 export type RecipeInput = {
