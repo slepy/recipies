@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react"
 
 import { getProviderConfiguration } from "../integrations/api"
-import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeInput } from "./api"
+import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeDraft, RecipeInput } from "./api"
 import { imageAccept, imageFormatsHint, validateImage } from "./imageRules"
 import RecognitionImagePicker from "./RecognitionImagePicker"
 
@@ -16,6 +16,13 @@ type RecipeWorkspaceProps = {
 type IngredientDraft = Ingredient
 
 const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "" }
+
+function dataUrlToFile(dataUrl: string, name: string) {
+  const [header, encoded] = dataUrl.split(",")
+  const type = header.match(/^data:([^;]+)/)?.[1] ?? "image/jpeg"
+  const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+  return new File([bytes], name, { type })
+}
 
 function optionalNumber(value: string) {
   return value === "" ? null : Number(value)
@@ -34,6 +41,8 @@ export default function RecipeWorkspace({
 }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isProviderConfigured, setIsProviderConfigured] = useState(false)
+  const [isProviderActive, setIsProviderActive] = useState(false)
+  const [isDishPhotoProposed, setIsDishPhotoProposed] = useState(false)
   const [isLoadingProviderConfiguration, setIsLoadingProviderConfiguration] = useState(true)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -59,7 +68,9 @@ export default function RecipeWorkspace({
 
     getProviderConfiguration(accessToken)
       .then((configuration) => {
-        if (isCurrent) setIsProviderConfigured(configuration.configured)
+        if (!isCurrent) return
+        setIsProviderConfigured(configuration.configured)
+        setIsProviderActive(configuration.configured && configuration.is_active)
       })
       .catch(() => {
         if (isCurrent) setIsProviderConfigured(false)
@@ -153,10 +164,26 @@ export default function RecipeWorkspace({
     }
     const message = validateImage(file, "zdjęcie")
     setPhotoError(message)
+    setIsDishPhotoProposed(false)
     setDishPhoto(message ? null : file)
   }
 
+  function applyDraft(draft: RecipeDraft) {
+    setTitle(draft.title)
+    setDescription(draft.description)
+    setServings(draft.servings === null ? "" : String(draft.servings))
+    setPrepTime(draft.prep_time_minutes === null ? "" : String(draft.prep_time_minutes))
+    setCookTime(draft.cook_time_minutes === null ? "" : String(draft.cook_time_minutes))
+    setIngredients(draft.ingredients.length > 0 ? draft.ingredients : [{ ...emptyIngredient }])
+    setSteps(draft.steps.length > 0 ? draft.steps : [""])
+    setPhotoError("")
+    setDishPhoto(draft.dish_photo ? dataUrlToFile(draft.dish_photo, "propozycja-ai.jpg") : null)
+    setIsDishPhotoProposed(Boolean(draft.dish_photo))
+    setNotice("Szkic z rozpoznania. Sprawdź i popraw dane, zanim zapiszesz przepis.")
+  }
+
   function startNewRecipe() {
+    setNotice("")
     setError("")
     setPhotoError("")
     setIsCreating(true)
@@ -196,6 +223,7 @@ export default function RecipeWorkspace({
       setIngredients([{ ...emptyIngredient }])
       setSteps([""])
       setDishPhoto(null)
+      setIsDishPhotoProposed(false)
       setNotice("Przepis został zapisany w Twojej kolekcji.")
       setIsCreating(false)
     } catch (saveError) {
@@ -255,7 +283,13 @@ export default function RecipeWorkspace({
             </button>
           </section>
 
-          <RecognitionImagePicker />
+          <RecognitionImagePicker
+            accessToken={accessToken}
+            isProviderActive={isProviderActive}
+            onOpenIntegrations={onOpenIntegrations}
+            onRecognized={applyDraft}
+          />
+          {notice && <p className="integration-status" role="status">{notice}</p>}
 
           <form className="recipe-form" onSubmit={submitRecipe}>
             <fieldset className="recipe-section">
@@ -298,7 +332,8 @@ export default function RecipeWorkspace({
                 {dishPhotoPreview && (
                   <div className="recipe-photo-preview">
                     <img src={dishPhotoPreview} alt="Podgląd zdjęcia gotowego dania" />
-                    <button className="text-button" onClick={() => setDishPhoto(null)} type="button">
+                    {isDishPhotoProposed && <small>Propozycja AI: wycięte z obrazu zdjęcie dania. Usuń je albo zastąp własnym.</small>}
+                    <button className="text-button" onClick={() => { setDishPhoto(null); setIsDishPhotoProposed(false) }} type="button">
                       Usuń zdjęcie
                     </button>
                   </div>

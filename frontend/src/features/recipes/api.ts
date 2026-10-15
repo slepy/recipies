@@ -21,7 +21,18 @@ export type Recipe = Omit<RecipeInput, "photo"> & {
   created_at: string
 }
 
-export class ApiError extends Error {}
+export type RecipeDraft = Omit<RecipeInput, "photo"> & {
+  dish_photo: string | null
+}
+
+export class ApiError extends Error {
+  code: string
+
+  constructor(message: string, code = "") {
+    super(message)
+    this.code = code
+  }
+}
 
 const recipesPath = "/api/recipes/"
 
@@ -78,4 +89,26 @@ export async function getRecipePhoto(accessToken: string, photoUrl: string) {
   })
   if (!response.ok) throw new ApiError("")
   return response.blob()
+}
+
+export async function recognizeRecipeImage(accessToken: string, image: File, signal?: AbortSignal) {
+  const formData = new FormData()
+  formData.append("image", image)
+  const response = await fetch(`${recipesPath}recognize/`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData,
+    signal,
+  })
+  const payload: unknown = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const fields = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {}
+    const imageError = Array.isArray(fields.image) ? fields.image[0] : fields.image
+    const message = [fields.detail, imageError].find((value) => typeof value === "string")
+    throw new ApiError(
+      typeof message === "string" ? message : "Nie udało się rozpoznać przepisu.",
+      typeof fields.code === "string" ? fields.code : "",
+    )
+  }
+  return payload as RecipeDraft
 }
