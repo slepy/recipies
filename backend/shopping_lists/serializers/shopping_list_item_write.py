@@ -14,3 +14,11 @@ class ShoppingListItemWriteSerializer(IngredientSerializer):
         if not name:
             raise serializers.ValidationError("Podaj nazwę pozycji.")
         return name
+
+    def validate(self, item_data):
+        if self.instance is None:
+            return super().validate(item_data)
+        # An edit sends only the changed fields, so check the metric pair against the saved one.
+        saved = {"metric_amount": self.instance.metric_amount, "metric_unit": self.instance.metric_unit}
+        super().validate({**saved, **item_data})
+        return item_data

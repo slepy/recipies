@@ -1,4 +1,6 @@
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from meal_plans.models import Meal, MealEntry, MealPlan
 from tests.support import client_for, create_recipe, create_user
@@ -46,6 +48,19 @@ class PlanPeriodApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["days"]), 2)
         self.assertEqual(MealEntry.objects.count(), 0)
+
+    def test_locks_the_plan_and_the_removed_meals_before_counting_entries(self):
+        # Without the locks an entry added between the count and the delete would vanish unconfirmed.
+        self.add_entry("2026-11-04")
+
+        with CaptureQueriesContext(connection) as queries:
+            self.client.patch(self.url, {"end_date": "2026-11-03"}, format="json")
+
+        sql = [query["sql"] for query in queries.captured_queries]
+        count_index = next(index for index, statement in enumerate(sql) if "COUNT(" in statement)
+        locks = [statement for statement in sql[:count_index] if "FOR UPDATE" in statement]
+        self.assertTrue(any('FROM "meal_plans_mealplan"' in statement for statement in locks))
+        self.assertTrue(any('FROM "meal_plans_meal" ' in statement for statement in locks))
 
     def test_shortening_empty_days_needs_no_confirmation(self):
         response = self.client.patch(self.url, {"end_date": "2026-11-03"}, format="json")

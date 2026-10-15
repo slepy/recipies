@@ -115,6 +115,21 @@ class ShoppingListItemApiTests(TestCase):
         self.assertEqual((edited.data["name"], edited.data["amount"]), ("mleko 3,2%", 1))
         self.assertEqual(self.client.delete(url).status_code, 204)
 
+    def test_editing_a_custom_item_keeps_the_metric_amount_and_unit_together(self):
+        item_id = self.add_custom(metric_amount=125, metric_unit="ml").data["id"]
+        url = f"{self.items_url}{item_id}/"
+
+        self.assertEqual(self.client.patch(url, {"metric_amount": None}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"metric_unit": ""}, format="json").status_code, 400)
+        item = ShoppingListItem.objects.get(pk=item_id)
+        self.assertEqual((item.metric_amount, item.metric_unit), (125, "ml"))
+
+        changed = self.client.patch(url, {"metric_amount": 250}, format="json")
+        cleared = self.client.patch(url, {"metric_amount": None, "metric_unit": ""}, format="json")
+
+        self.assertEqual((changed.data["metric_amount"], changed.data["metric_unit"]), (250, "ml"))
+        self.assertEqual((cleared.data["metric_amount"], cleared.data["metric_unit"]), (None, ""))
+
     def test_other_users_items_are_not_found(self):
         intruder = client_for(create_user("intruder@example.com"))
         url = f"{self.items_url}{self.recipe_item['id']}/"

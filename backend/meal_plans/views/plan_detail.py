@@ -28,13 +28,16 @@ class PlanDetailView(APIView):
         days = PlanDays()
         start_date = serializer.validated_data.get("start_date", plan.start_date)
         end_date = serializer.validated_data.get("end_date", plan.end_date)
-        removed_entries = days.count_entries_outside_period(plan, start_date, end_date)
-        if removed_entries and request.data.get("confirm") is not True:
-            return confirmation_required(
-                f"Skrócenie okresu usunie {removed_entries} wpisów z planu.", removed_entries
-            )
-
         with transaction.atomic():
+            # Lock the plan (adding a meal locks it) and the meals to remove (adding an entry locks
+            # its meal), so nothing added meanwhile is deleted without being counted.
+            MealPlan.objects.select_for_update().get(pk=plan.pk)
+            list(days.outside_period(plan, start_date, end_date).select_for_update())
+            removed_entries = days.count_entries_outside_period(plan, start_date, end_date)
+            if removed_entries and request.data.get("confirm") is not True:
+                return confirmation_required(
+                    f"Skrócenie okresu usunie {removed_entries} wpisów z planu.", removed_entries
+                )
             days.outside_period(plan, start_date, end_date).delete()
             plan = serializer.save()
             days.create_missing(plan)
