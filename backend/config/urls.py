@@ -14,4 +14,6 @@ urlpatterns = [
 	path("api/auth/me/", CurrentUserView.as_view(), name="auth-me"),
 	path("api/integrations/", include("integrations.urls")),
 	path("api/recipes/", include("recipes.urls")),
+	path("api/meal-plans/", include("meal_plans.urls")),
+	path("api/shopping-lists/", include("shopping_lists.urls")),
 ]

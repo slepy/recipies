@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react"
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router"
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router"
 
 import {
   Account,
@@ -10,12 +10,51 @@ import {
   register,
 } from "./features/accounts/api"
 import IntegrationSettings from "./features/integrations/IntegrationSettings"
+import MealPlanList from "./features/meal-plans/MealPlanList"
+import MealPlanView from "./features/meal-plans/MealPlanView"
 import RecipeWorkspace from "./features/recipes/RecipeWorkspace"
+import ShoppingListView from "./features/shopping-lists/ShoppingListView"
+import { HeaderLink } from "./shared/ui/PageHeader"
 
 type AuthState = "loading" | "anonymous" | "authenticated"
 
 const foodImage =
   "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1800&q=85"
+
+type PlanScreenProps = {
+  accessToken: string
+  accountEmail: string
+  headerLinks: HeaderLink[]
+  onSignOut: () => void
+}
+
+function PlanRoute(props: PlanScreenProps) {
+  const navigate = useNavigate()
+  const planId = Number(useParams().planId)
+  if (!Number.isInteger(planId)) return <Navigate to="/plans" replace />
+  return (
+    <MealPlanView
+      {...props}
+      onBack={() => navigate("/plans")}
+      onOpenList={(listId) => navigate(`/lists/${listId}`)}
+      planId={planId}
+    />
+  )
+}
+
+function ListRoute(props: PlanScreenProps) {
+  const navigate = useNavigate()
+  const listId = Number(useParams().listId)
+  if (!Number.isInteger(listId)) return <Navigate to="/plans" replace />
+  return (
+    <ShoppingListView
+      {...props}
+      listId={listId}
+      onBack={() => navigate("/plans")}
+      onBackToPlan={(planId) => navigate(`/plans/${planId}`)}
+    />
+  )
+}
 
 export default function App() {
   const navigate = useNavigate()
@@ -115,6 +154,17 @@ export default function App() {
   }
 
   if (authState === "authenticated" && account && accessToken) {
+    const screenProps: PlanScreenProps = {
+      accessToken,
+      accountEmail: account.email,
+      headerLinks: [
+        { label: "Przepisy", onClick: () => navigate("/recipes") },
+        { label: "Plany żywieniowe", onClick: () => navigate("/plans") },
+        { label: "Integracje AI", onClick: () => navigate("/settings/integrations") },
+      ],
+      onSignOut: signOut,
+    }
+
     return (
       <Routes>
         <Route
@@ -125,10 +175,17 @@ export default function App() {
               accountEmail={account.email}
               accountError={error}
               onOpenIntegrations={() => navigate("/settings/integrations")}
+              onOpenPlans={() => navigate("/plans")}
               onSignOut={signOut}
             />
           }
         />
+        <Route
+          path="/plans"
+          element={<MealPlanList {...screenProps} onOpenPlan={(planId) => navigate(`/plans/${planId}`)} />}
+        />
+        <Route path="/plans/:planId" element={<PlanRoute {...screenProps} />} />
+        <Route path="/lists/:listId" element={<ListRoute {...screenProps} />} />
         <Route
           path="/settings/integrations"
           element={

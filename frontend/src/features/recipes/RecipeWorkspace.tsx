@@ -10,6 +10,7 @@ type RecipeWorkspaceProps = {
   accountEmail: string
   accountError: string
   onOpenIntegrations: () => void
+  onOpenPlans?: () => void
   onSignOut: () => void
 }
 
@@ -44,6 +45,7 @@ export default function RecipeWorkspace({
   accountEmail,
   accountError,
   onOpenIntegrations,
+  onOpenPlans,
   onSignOut,
 }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -255,6 +257,11 @@ export default function RecipeWorkspace({
         </a>
         <div className="recipe-account">
           <span>{accountEmail}</span>
+          {onOpenPlans && (
+            <button className="text-button" type="button" onClick={onOpenPlans}>
+              Plany żywieniowe
+            </button>
+          )}
           <button className="text-button" type="button" onClick={onOpenIntegrations}>
             Integracje AI
           </button>
