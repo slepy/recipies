@@ -6,11 +6,16 @@ from recipes.models import Recipe
 from recipes.errors import InvalidPhotoError
 from recipes.services import PhotoSanitizer
 
+METRIC_UNITS = ("g", "kg", "ml", "l")
+
 
 class IngredientSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     amount = serializers.CharField(max_length=100, required=False, allow_blank=True)
     unit = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    # Metric measure used for shopping-list sums: g and kg add up, ml and l add up.
+    metric_amount = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=1000000)
+    metric_unit = serializers.ChoiceField(choices=METRIC_UNITS, required=False, allow_blank=True)
 
 
 class RecipeSerializer(serializers.ModelSerializer):

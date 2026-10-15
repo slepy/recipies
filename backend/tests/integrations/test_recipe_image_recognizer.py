@@ -1,8 +1,10 @@
 import json
+from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
 from django.test import SimpleTestCase
+from PIL import Image
 
 from integrations.services.provider_connection_tester import (
     InvalidProviderApiKey,
@@ -13,6 +15,10 @@ from integrations.errors import InvalidRecognitionResponse
 from integrations.services.recipe_draft_cleaner import RecipeDraftCleaner
 from integrations.services.recipe_image_recognizer import RecipeImageRecognizer
 
+_png = BytesIO()
+Image.new("RGB", (4, 2)).save(_png, format="PNG")
+PNG_BYTES = _png.getvalue()
+
 DRAFT = {
     "title": "Zupa",
     "description": "",
@@ -21,7 +27,7 @@ DRAFT = {
     "cook_time_minutes": "30",
     "ingredients": [{"name": "woda", "amount": "1", "unit": "l"}, {"name": "", "amount": "", "unit": ""}, "x"],
     "steps": ["Gotuj", "  ", 5],
-    "dish_region": {"left": 0.1, "top": 0.1, "width": 0.5, "height": 0.5},
+    "dish_region": {"left": 0.1, "top": 0.1, "right": 0.5, "bottom": 0.5},
 }
 
 
@@ -37,8 +43,23 @@ class RecipeImageRecognizerTests(SimpleTestCase):
     def recognize(self, content):
         patcher, mock = provider_response(content)
         self.addCleanup(patcher.stop)
-        reply = RecipeImageRecognizer().recognize("openai", "provider-secret", b"img", "image/png")
+        reply = RecipeImageRecognizer().recognize("openai", "provider-secret", PNG_BYTES, "image/png")
         return RecipeDraftCleaner().clean(reply), mock
+
+    def test_keeps_a_metric_measure_only_when_complete_and_valid(self):
+        reply = {"ingredients": [
+            {"name": "Chleb", "amount": "3", "unit": "kromki", "metric_amount": 90, "metric_unit": "G"},
+            {"name": "Woda", "metric_amount": 0.5, "metric_unit": "l"},
+            {"name": "Mąka", "metric_amount": 250},
+            {"name": "Sól", "metric_amount": 1, "metric_unit": "szczypta"},
+        ]}
+        measures = [(i["metric_amount"], i["metric_unit"]) for i in RecipeDraftCleaner().clean(reply)["ingredients"]]
+        self.assertEqual(measures, [(90, "g"), (0.5, "l"), (None, ""), (None, "")])
+
+    def test_numeric_amounts_are_kept_as_text(self):
+        reply = {"ingredients": [{"name": "Jajko", "amount": 0.5, "unit": "szt"}, {"name": "Chleb", "amount": 3, "unit": ""}]}
+        draft = RecipeDraftCleaner().clean(reply)
+        self.assertEqual([i["amount"] for i in draft["ingredients"]], ["0.5", "3"])
 
     def test_sends_image_to_provider_and_cleans_the_draft(self):
         draft, urlopen = self.recognize(json.dumps(DRAFT))
@@ -52,7 +73,7 @@ class RecipeImageRecognizerTests(SimpleTestCase):
         self.assertEqual(draft["title"], "Zupa")
         self.assertIsNone(draft["prep_time_minutes"])
         self.assertIsNone(draft["cook_time_minutes"])  # a string is not trusted as a number
-        self.assertEqual(draft["ingredients"], [{"name": "woda", "amount": "1", "unit": "l"}])
+        self.assertEqual(draft["ingredients"], [{"name": "woda", "amount": "1", "unit": "l", "metric_amount": None, "metric_unit": ""}])
         self.assertEqual(draft["steps"], ["Gotuj"])
 
     def test_missing_fields_stay_empty(self):
@@ -83,5 +104,5 @@ class RecipeImageRecognizerTests(SimpleTestCase):
             with self.subTest(failure=failure):
                 urlopen.side_effect = failure
                 with self.assertRaises(expected) as raised:
-                    RecipeImageRecognizer().recognize("openai", "provider-secret", b"img", "image/png")
+                    RecipeImageRecognizer().recognize("openai", "provider-secret", PNG_BYTES, "image/png")
                 self.assertNotIn("provider-secret", str(raised.exception))

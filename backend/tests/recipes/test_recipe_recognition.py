@@ -27,7 +27,7 @@ DRAFT = {
     "cook_time_minutes": None,
     "ingredients": [{"name": "woda", "amount": "1", "unit": "l"}],
     "steps": ["Gotuj"],
-    "dish_region": {"left": 0, "top": 0, "width": 0.5, "height": 0.5},
+    "dish_region": {"left": 0, "top": 0, "right": 0.5, "bottom": 0.5},
 }
 
 
@@ -89,7 +89,7 @@ class RecipeRecognitionApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["title"], "Zupa")
-        self.assertEqual(response.data["ingredients"], DRAFT["ingredients"])
+        self.assertEqual(response.data["ingredients"], [{**DRAFT["ingredients"][0], "metric_amount": None, "metric_unit": ""}])
         self.assertTrue(response.data["dish_photo"].startswith("data:image/png;base64,"))
         self.assertNotIn("dish_region", response.data)
         self.assertFalse(Recipe.objects.exists())
@@ -98,7 +98,7 @@ class RecipeRecognitionApiTests(TestCase):
 
     def test_draft_without_valid_region_has_no_dish_photo(self):
         self.configure_provider()
-        for region in (None, {"left": 5, "top": 5, "width": 1, "height": 1}):
+        for region in (None, {"left": 5, "top": 5, "right": 6, "bottom": 6}):
             with patch(RECOGNIZER) as recognizer:
                 recognizer.recognize.return_value = {**DRAFT, "dish_region": region}
                 response = self.recognize()

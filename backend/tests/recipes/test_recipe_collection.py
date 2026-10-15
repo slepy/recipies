@@ -46,7 +46,7 @@ class RecipeCollectionApiTests(TestCase):
                 "servings": 4,
                 "prep_time_minutes": 10,
                 "cook_time_minutes": 30,
-                "ingredients": [{"name": "pomidory", "amount": "500", "unit": "g"}],
+                "ingredients": [{"name": "pomidory", "amount": "500", "unit": "g", "metric_amount": 500, "metric_unit": "g"}],
                 "steps": ["Pokrój pomidory", "Gotuj do miękkości"],
             },
             format="json",
@@ -56,7 +56,19 @@ class RecipeCollectionApiTests(TestCase):
         recipe = Recipe.objects.get()
         self.assertEqual(recipe.owner, self.user)
         self.assertEqual(response.data["ingredients"][0]["name"], "pomidory")
+        self.assertEqual(response.data["ingredients"][0]["metric_amount"], 500)
+        self.assertEqual(response.data["ingredients"][0]["metric_unit"], "g")
         self.assertEqual(response.data["steps"], ["Pokrój pomidory", "Gotuj do miękkości"])
+
+    def test_rejects_a_metric_unit_that_cannot_be_summed(self):
+        response = self.client.post(
+            "/api/recipes/",
+            {"title": "Zupa", "ingredients": [{"name": "sól", "metric_amount": 1, "metric_unit": "szczypta"}]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recipe.objects.exists())
 
     def test_title_is_required_but_other_fields_may_be_empty(self):
         empty_recipe = self.client.post("/api/recipes/", {"title": "  "}, format="json")
