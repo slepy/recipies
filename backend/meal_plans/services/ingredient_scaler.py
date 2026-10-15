@@ -1,20 +1,4 @@
-import re
-
-_NUMBER = re.compile(r"^(?:(\d+)\s+)?(\d+)/(\d+)$|^\d+(?:[.,]\d+)?$")
-
-
-def parse_amount(text):
-    """Turn "2", "1,5", "1/2" or "1 1/2" into a float; return None for anything else ("do smaku", "2-3")."""
-    value = str(text or "").strip()
-    match = _NUMBER.match(value)
-    if not match:
-        return None
-    if match.group(2) is None:
-        return float(value.replace(",", "."))
-    denominator = int(match.group(3))
-    if denominator == 0:
-        return None
-    return int(match.group(1) or 0) + int(match.group(2)) / denominator
+from ingredients.normalization import parse_amount
 
 
 class IngredientScaler:

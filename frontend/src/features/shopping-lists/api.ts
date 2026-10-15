@@ -9,6 +9,10 @@ export type ListItem = {
   amount_text: string
   metric_amount: number | null
   metric_unit: "" | "g" | "kg" | "ml" | "l"
+  // True when a custom item's weight was worked out from the ingredient knowledge base.
+  metric_estimated: boolean
+  // Grams per unit of this product and unit from the knowledge base, or null when unknown.
+  unit_weight: number | null
   partial: boolean
   bought: boolean
   bought_amount: number | null
