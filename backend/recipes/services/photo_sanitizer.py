@@ -3,12 +3,10 @@ from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from recipes.errors import InvalidPhotoError
+
 MAX_PIXELS = 40_000_000
 SAVE_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
-
-
-class InvalidPhotoError(ValueError):
-    pass
 
 
 class PhotoSanitizer:

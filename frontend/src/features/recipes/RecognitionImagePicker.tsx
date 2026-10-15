@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 
-import { ApiError, recognizeRecipeImage, RecipeDraft } from "./api"
+import { RecipeDraft } from "./api"
 import { imageAccept, imageFormatsHint, validateImage } from "./imageRules"
+import useRecipeRecognition from "./useRecipeRecognition"
 
 type RecognitionImagePickerProps = {
   accessToken: string
@@ -19,9 +20,8 @@ export default function RecognitionImagePicker({
   const [image, setImage] = useState<File | null>(null)
   const [preview, setPreview] = useState("")
   const [error, setError] = useState("")
-  const [recognitionError, setRecognitionError] = useState("")
-  const [isRecognizing, setIsRecognizing] = useState(false)
-  const request = useRef<AbortController | null>(null)
+  const recognition = useRecipeRecognition(accessToken)
+  const { isRecognizing } = recognition
 
   useEffect(() => {
     if (!image) {
@@ -33,44 +33,27 @@ export default function RecognitionImagePicker({
     return () => URL.revokeObjectURL(previewUrl)
   }, [image])
 
-  useEffect(() => () => request.current?.abort(), [])
-
   function selectImage(file: File | undefined) {
     if (!file || isRecognizing) return
     const message = validateImage(file, "obraz")
     setError(message)
-    setRecognitionError("")
+    recognition.clearError()
     setImage(message ? null : file)
   }
 
   function discardImage() {
-    request.current?.abort()
+    recognition.cancel()
     setImage(null)
     setError("")
-    setRecognitionError("")
+    recognition.clearError()
   }
 
   async function recognize() {
-    if (!image || isRecognizing) return
-    const controller = new AbortController()
-    request.current = controller
-    setRecognitionError("")
-    setIsRecognizing(true)
-    try {
-      onRecognized(await recognizeRecipeImage(accessToken, image, controller.signal))
+    if (!image) return
+    const draft = await recognition.recognize(image)
+    if (draft) {
+      onRecognized(draft)
       setImage(null)
-    } catch (recognizeError) {
-      if (controller.signal.aborted) return
-      setRecognitionError(
-        recognizeError instanceof ApiError && recognizeError.message
-          ? recognizeError.message
-          : "Nie udało się rozpoznać przepisu. Spróbuj ponownie albo wypełnij formularz ręcznie.",
-      )
-    } finally {
-      if (request.current === controller) {
-        request.current = null
-        setIsRecognizing(false)
-      }
     }
   }
 
@@ -143,9 +126,7 @@ export default function RecognitionImagePicker({
         </div>
       )}
       {isRecognizing && <p role="status">Rozpoznaję przepis, to może potrwać do minuty...</p>}
-      {recognitionError && (
-        <p className="form-error" role="alert">{recognitionError}</p>
-      )}
+      {recognition.error && <p className="form-error" role="alert">{recognition.error}</p>}
     </section>
   )
 }

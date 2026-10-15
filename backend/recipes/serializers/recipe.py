@@ -3,8 +3,8 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from recipes.models import Recipe
+from recipes.errors import InvalidPhotoError
 from recipes.services import PhotoSanitizer
-from recipes.services.photo_sanitizer import InvalidPhotoError
 
 
 class IngredientSerializer(serializers.Serializer):

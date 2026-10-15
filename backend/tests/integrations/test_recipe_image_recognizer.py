@@ -9,10 +9,9 @@ from integrations.services.provider_connection_tester import (
     ProviderConnectionError,
     ProviderRateLimitExceeded,
 )
-from integrations.services.recipe_image_recognizer import (
-    InvalidRecognitionResponse,
-    RecipeImageRecognizer,
-)
+from integrations.errors import InvalidRecognitionResponse
+from integrations.services.recipe_draft_cleaner import RecipeDraftCleaner
+from integrations.services.recipe_image_recognizer import RecipeImageRecognizer
 
 DRAFT = {
     "title": "Zupa",
@@ -38,7 +37,8 @@ class RecipeImageRecognizerTests(SimpleTestCase):
     def recognize(self, content):
         patcher, mock = provider_response(content)
         self.addCleanup(patcher.stop)
-        return RecipeImageRecognizer().recognize("openai", "provider-secret", b"img", "image/png"), mock
+        reply = RecipeImageRecognizer().recognize("openai", "provider-secret", b"img", "image/png")
+        return RecipeDraftCleaner().clean(reply), mock
 
     def test_sends_image_to_provider_and_cleans_the_draft(self):
         draft, urlopen = self.recognize(json.dumps(DRAFT))

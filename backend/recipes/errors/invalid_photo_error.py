@@ -1,0 +1,2 @@
+class InvalidPhotoError(ValueError):
+    pass

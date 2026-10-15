@@ -5,6 +5,7 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
+from integrations.errors import InvalidRecognitionResponse
 from integrations.services.provider_connection_tester import (
     InvalidProviderApiKey,
     ProviderConnectionError,
@@ -31,12 +32,8 @@ SYSTEM_PROMPT = (
 )
 
 
-class InvalidRecognitionResponse(ProviderConnectionError):
-    pass
-
-
 class RecipeImageRecognizer:
-    """Asks the user's AI provider to read a recipe image and returns a cleaned draft."""
+    """Asks the user's AI provider to read a recipe image and returns its JSON reply as a dict."""
 
     def recognize(self, provider: str, api_key: str, image_bytes: bytes, content_type: str) -> dict:
         url = CHAT_COMPLETIONS_URLS.get(provider)
@@ -81,47 +78,6 @@ class RecipeImageRecognizer:
 
         try:
             content = payload["choices"][0]["message"]["content"]
-            return self.clean_draft(json.loads(content))
+            return json.loads(content)
         except (KeyError, IndexError, TypeError, ValueError):
             raise InvalidRecognitionResponse from None
-
-    def clean_draft(self, raw) -> dict:
-        """Keeps only known fields with the right types; missing values stay empty."""
-        if not isinstance(raw, dict):
-            raise InvalidRecognitionResponse
-
-        def text(value, limit):
-            return value.strip()[:limit] if isinstance(value, str) else ""
-
-        def whole_number(value, maximum):
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                return None
-            return int(value) if 0 <= value <= maximum else None
-
-        raw_ingredients = raw.get("ingredients")
-        ingredients = []
-        for item in raw_ingredients if isinstance(raw_ingredients, list) else []:
-            if not isinstance(item, dict):
-                continue
-            ingredient = {
-                "name": text(item.get("name"), 200),
-                "amount": text(item.get("amount"), 100),
-                "unit": text(item.get("unit"), 100),
-            }
-            if any(ingredient.values()):
-                ingredients.append(ingredient)
-
-        raw_steps = raw.get("steps")
-        steps = [text(item, 2000) for item in raw_steps] if isinstance(raw_steps, list) else []
-        steps = [step for step in steps if step]
-
-        return {
-            "title": text(raw.get("title"), 200),
-            "description": text(raw.get("description"), 5000),
-            "servings": whole_number(raw.get("servings"), 32767),
-            "prep_time_minutes": whole_number(raw.get("prep_time_minutes"), 100000),
-            "cook_time_minutes": whole_number(raw.get("cook_time_minutes"), 100000),
-            "ingredients": ingredients,
-            "steps": steps,
-            "dish_region": raw.get("dish_region"),
-        }

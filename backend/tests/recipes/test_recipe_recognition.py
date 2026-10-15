@@ -15,10 +15,10 @@ from accounts.models import User
 from integrations.models import AIProviderConfiguration
 from integrations.services.api_key_encryption import encrypt_api_key
 from integrations.services.provider_connection_tester import InvalidProviderApiKey, ProviderConnectionError
-from integrations.services.recipe_image_recognizer import InvalidRecognitionResponse
+from integrations.errors import InvalidRecognitionResponse
 from recipes.models import Recipe
 
-RECOGNIZER = "recipes.views.recipe_recognition.RecipeRecognitionView.recognizer"
+RECOGNIZER = "recipes.views.recipe_recognition.RecipeRecognitionView.recognition.recognizer"
 DRAFT = {
     "title": "Zupa",
     "description": "",
@@ -109,7 +109,7 @@ class RecipeRecognitionApiTests(TestCase):
 
     def test_crop_failure_keeps_the_draft(self):
         self.configure_provider()
-        with patch(RECOGNIZER) as recognizer, patch("recipes.views.recipe_recognition.DishCropper.crop", side_effect=ValueError):
+        with patch(RECOGNIZER) as recognizer, patch("recipes.views.recipe_recognition.RecipeRecognitionView.recognition.cropper.crop", side_effect=ValueError):
             recognizer.recognize.return_value = dict(DRAFT)
             response = self.recognize()
 
