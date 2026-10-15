@@ -52,7 +52,9 @@ class RecipeRecognitionApiTests(TestCase):
     def upload(self, name="page.png", data=None, content_type="image/png"):
         if data is None:
             output = BytesIO()
-            Image.new("RGB", (200, 100), "tomato").save(output, format="PNG")
+            page = Image.new("RGB", (200, 100), "white")  # a plain page with a photo in the top-left corner
+            page.paste("tomato", (0, 0, 100, 50))
+            page.save(output, format="PNG")
             data = output.getvalue()
         return SimpleUploadedFile(name, data, content_type=content_type)
 
