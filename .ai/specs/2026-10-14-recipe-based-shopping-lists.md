@@ -3,8 +3,20 @@
 > Status: Draft
 > Owner: Do ustalenia
 > Created: 2026-10-14
-> Updated: 2026-10-14
+> Updated: 2026-10-15
 > Related issue/decision: Brak
+
+## Stan implementacji
+
+> Sprawdzono: 2026-10-15, kod z commitu `f42cc28` (`main`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
+
+| Obszar | Stan | Szczegóły |
+| --- | --- | --- |
+| FR-001–FR-008 | ❌ Nie zaczęte | Brak aplikacji `shopping_lists` w backendzie i funkcji w frontendzie |
+
+**Zależności gotowe:** zapisane przepisy ze składnikami (nazwa, ilość i jednostka jako tekst) z `2026-10-14-add-recipe.md` oraz uwierzytelnianie JWT.
+
+**Następny krok:** faza 1 tej specyfikacji.
 
 ## 1. Podsumowanie
 

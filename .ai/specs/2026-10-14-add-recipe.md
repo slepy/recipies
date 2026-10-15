@@ -8,7 +8,7 @@
 
 ## Stan implementacji
 
-> Sprawdzono: 2026-10-15, kod z commitu `f1e9663` (scalone `feature/add-recipe`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
+> Sprawdzono: 2026-10-15, kod z commitu `f42cc28` (`main`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
 
 | Obszar | Stan | Szczegóły |
 | --- | --- | --- |
@@ -23,7 +23,6 @@
 **Znane problemy:**
 
 - `backend/tests/recipes/` nie ma `__init__.py`, więc `manage.py test tests` pomija 7 testów przepisów. Przechodzą, gdy uruchomić je bezpośrednio.
-- 2 testy w `frontend/src/features/accounts/AuthApp.test.tsx` nie przechodzą po zmianach z `eb2b15c`.
 - Katalog `frontend/.vite/` (wygenerowane zależności) jest w repozytorium.
 
 **Następny krok:** AC-020 (EXIF), potem faza 4.

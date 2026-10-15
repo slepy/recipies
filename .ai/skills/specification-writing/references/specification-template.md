@@ -6,6 +6,18 @@
 > Updated: <YYYY-MM-DD>  
 > Related issue/decision: <link or ID, if any>
 
+## Implementation Status
+
+> Checked: <YYYY-MM-DD>, code at commit `<short SHA>` (<branch>). If neither the code nor this specification changed since then, this section is enough.
+
+| Area | Status | Details |
+|---|---|---|
+| <FR-ID short name> | ✅ Done / 🟡 Partial / ❌ Not started | <where it lives, what is missing> |
+
+**Known issues:** <defects or gaps found in the implemented parts, or "none">
+
+**Next step:** <the next phase or requirement to implement>
+
 ## 1. Summary
 
 <Describe the proposed change in a few sentences.>

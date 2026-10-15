@@ -3,8 +3,31 @@
 > Status: Draft
 > Owner: Do ustalenia
 > Created: 2026-10-14
-> Updated: 2026-10-14
-> Related issue/decision: Brak
+> Updated: 2026-10-15
+> Related issue/decision: ADR-0002 (stos uwierzytelniania)
+
+## Stan implementacji
+
+> Sprawdzono: 2026-10-15, kod z commitu `f42cc28` (`main`). Jeśli od tego czasu nie zmieniał się kod ani specyfikacja, ta sekcja wystarcza.
+
+| Obszar | Stan | Szczegóły |
+| --- | --- | --- |
+| FR-001 rejestracja (AC-001–AC-003) | ✅ Zrobione | `POST /api/auth/register/`; e-mail unikalny bez względu na wielkość liter (ograniczenie w bazie); hasło min. 12 znaków |
+| FR-002 logowanie (AC-004–AC-005) | ✅ Zrobione | Neutralny komunikat błędu |
+| FR-003 rotacja refresh i wylogowanie (AC-006) | ✅ Zrobione | Ponowne użycie refresh tokenu jest odrzucane; ale patrz znane problemy (czas życia access tokenu) |
+| FR-004 odnowienie sesji (AC-007, AC-010) | 🟡 Częściowo | CSRF i sprawdzanie origin działają, refresh żyje 7 dni; **access token żyje 24 h zamiast ≤ 10 min** |
+| FR-005 własność zasobów (AC-008–AC-009) | ✅ Zrobione | Przepisy i integracje filtrowane po `request.user` |
+| QR-001 haszowanie haseł | ✅ Zrobione | Mechanizm Django |
+| QR-002 token w pamięci, ciasteczko HttpOnly/Secure/Lax | ✅ Zrobione | Brak `localStorage`; `Secure` gdy `DEBUG=false` |
+| QR-003 brak sekretów w logach | 🟡 Nie zweryfikowano testem | Kod nie loguje haseł ani tokenów |
+| QR-004 limit prób logowania | ✅ Zrobione | 5 na minutę na logowanie, 5 na godzinę na rejestrację |
+| QR-005 dostępność formularzy | 🟡 Nie zweryfikowano ręcznie | Etykiety i komunikaty z `role="alert"` są |
+
+**Znane problemy:**
+
+- Commit `eb2b15c` zmienił `ACCESS_TOKEN_LIFETIME` z 10 minut na 24 godziny (`backend/config/settings.py`), a w `App.tsx` dodał odświeżanie co 23 h. To narusza AC-006 i AC-010. Żaden test nie sprawdza czasu życia tokenu.
+
+**Następny krok:** przywrócić 10 minut, odświeżać token przed wygaśnięciem (np. po 9 minutach) i dodać test czasu życia tokenu.
 
 ## 1. Podsumowanie
 
