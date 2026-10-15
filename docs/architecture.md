@@ -1,7 +1,7 @@
 # System Architecture
 
 > Status: Proposed baseline
-> Updated: 2026-10-14
+> Updated: 2026-10-15
 
 ## Goals
 
@@ -113,7 +113,7 @@ frontend/src/
     shopping-lists/       # list pages and feature components
 ```
 
-This is the intended direction for the initial frontend, not a mandate to create every folder up front. A feature owns its screens, feature-specific components, and API operations. `shared/ui` must not depend on product features or make network requests. Features may compose shared UI; shared UI must not import feature code. Keep API calls behind a small shared transport boundary and feature-owned API functions rather than scattering `fetch` calls across visual components.
+This is the intended direction for the initial frontend, not a mandate to create every folder up front. Routing uses React Router (ADR-0004); routes are declared in `App.tsx` until an `app/` module is needed, and feature screens receive navigation callbacks rather than importing the router. A feature owns its screens, feature-specific components, and API operations. `shared/ui` must not depend on product features or make network requests. Features may compose shared UI; shared UI must not import feature code. Keep API calls behind a small shared transport boundary and feature-owned API functions rather than scattering `fetch` calls across visual components.
 
 ### Core UI Components
 
@@ -157,5 +157,5 @@ Apply the principles pragmatically; they guide decisions rather than require a p
 ## Open Decisions
 
 - Deployment environment, production secret management, and allowed frontend origins.
-- Frontend routing, component test tooling, and whether/when to add Storybook.
+- Component test tooling, and whether/when to add Storybook.
 - Production frontend/API origin arrangement for refresh cookies, CSRF, and API requests.
