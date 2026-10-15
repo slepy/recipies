@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
-import { MemoryRouter, useLocation } from "react-router"
+import { MemoryRouter, useLocation, useNavigate } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import App from "../../App"
@@ -31,11 +31,17 @@ function CurrentPath() {
   return <output data-testid="current-path">{useLocation().pathname}</output>
 }
 
+function BackButton() {
+  const navigate = useNavigate()
+  return <button onClick={() => navigate(-1)}>Wstecz przeglądarki</button>
+}
+
 function renderApp(path = "/login") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <App />
       <CurrentPath />
+      <BackButton />
     </MemoryRouter>,
   )
 }
@@ -141,6 +147,23 @@ describe("account access screen", () => {
 
     expect(await screen.findByRole("heading", { name: "Integracje AI" })).toBeInTheDocument()
     expect(currentPath()).toBe("/settings/integrations")
+  })
+
+  it("clears a form error when the browser goes back to the other form", async () => {
+    vi.mocked(register).mockRejectedValue(new Error("Konto już istnieje."))
+    renderApp()
+
+    await screen.findByRole("heading", { name: "Zaloguj się" })
+    fireEvent.click(screen.getByRole("button", { name: "Utwórz konto" }))
+    fireEvent.change(screen.getByLabelText("Adres e-mail"), { target: { value: "cook@example.com" } })
+    fireEvent.change(screen.getByLabelText(/^Hasło/), { target: { value: "a-long-unique-password" } })
+    fireEvent.submit(screen.getByLabelText("Adres e-mail").closest("form")!)
+    expect(await screen.findByRole("alert")).toHaveTextContent("Konto już istnieje.")
+
+    fireEvent.click(screen.getByRole("button", { name: "Wstecz przeglądarki" }))
+
+    expect(await screen.findByRole("heading", { name: "Zaloguj się" })).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
   it("opens registration directly from its URL", async () => {

@@ -30,6 +30,10 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
+    setError("")
+  }, [mode])
+
+  useEffect(() => {
     let isCurrent = true
 
     async function restoreSession() {
@@ -213,7 +217,6 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   navigate(mode === "login" ? "/register" : "/login")
-                  setError("")
                 }}
               >
                 {mode === "login" ? "Utwórz konto" : "Zaloguj się"}
