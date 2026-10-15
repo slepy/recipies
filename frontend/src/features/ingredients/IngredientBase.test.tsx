@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -95,6 +95,23 @@ describe("ingredient knowledge base", () => {
 
     expect(createUnitWeight).toHaveBeenCalledWith("token", { name: "rukola", unit: "garść", grams_per_unit: 20.5 })
     expect(form.getByLabelText(/^Nazwa produktu/)).toHaveValue("")
+  })
+
+  it("sends an entry once while it is being saved", async () => {
+    let finishSaving: (saved: UnitWeight) => void = () => {}
+    vi.mocked(createUnitWeight).mockReturnValue(new Promise((resolve) => (finishSaving = resolve)))
+    renderBase()
+    const form = within(await screen.findByRole("form", { name: "Nowy wpis" }))
+
+    await userEvent.type(form.getByLabelText(/^Nazwa produktu/), "rukola")
+    await userEvent.type(form.getByLabelText(/^Gramy na jednostkę/), "20")
+    await userEvent.click(form.getByRole("button", { name: "Dodaj wpis" }))
+    await userEvent.click(form.getByRole("button", { name: "Dodaj wpis" }))
+
+    expect(form.getByRole("button", { name: "Dodaj wpis" })).toBeDisabled()
+    expect(createUnitWeight).toHaveBeenCalledTimes(1)
+    finishSaving(entry({ id: 4 }))
+    await waitFor(() => expect(form.getByRole("button", { name: "Dodaj wpis" })).toBeEnabled())
   })
 
   it("checks the form and shows the server's message about an existing entry", async () => {

@@ -136,15 +136,29 @@ export default function IngredientBase({ accessToken, accountEmail, headerLinks,
     void load(query)
   }, [load, query])
 
-  async function add(entry: UnitWeightInput) {
-    await createUnitWeight(accessToken, entry)
-    await load(query)
+  // Saving disables the forms, so a second click cannot send the same entry again.
+  async function whileBusy(action: () => Promise<void>) {
+    setIsBusy(true)
+    try {
+      await action()
+    } finally {
+      setIsBusy(false)
+    }
   }
 
-  async function save(entryId: number, entry: UnitWeightInput) {
-    await updateUnitWeight(accessToken, entryId, entry)
-    setEditingId(null)
-    await load(query)
+  function add(entry: UnitWeightInput) {
+    return whileBusy(async () => {
+      await createUnitWeight(accessToken, entry)
+      await load(query)
+    })
+  }
+
+  function save(entryId: number, entry: UnitWeightInput) {
+    return whileBusy(async () => {
+      await updateUnitWeight(accessToken, entryId, entry)
+      setEditingId(null)
+      await load(query)
+    })
   }
 
   async function remove(entry: UnitWeight) {
