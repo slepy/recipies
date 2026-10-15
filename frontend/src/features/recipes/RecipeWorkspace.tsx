@@ -263,32 +263,33 @@ export default function RecipeWorkspace({
           <h1 id="recipe-heading">Dodaj przepis</h1>
           <p className="recipe-intro">Zapisz swój przepis, aby wrócić do niego przy planowaniu posiłków.</p>
 
-          <section className="recipe-ai-prompt" aria-labelledby="recipe-ai-heading">
+          <section
+            className={`recipe-ai-prompt${isProviderConfigured ? " recipe-ai-prompt--ready" : ""}`}
+            aria-labelledby="recipe-ai-heading"
+          >
             <div>
               <span className="eyebrow">ALTERNATYWNIE · AI</span>
               <h2 id="recipe-ai-heading">Odczytaj przepis z fotografii</h2>
-              <p>Import ze zdjęcia będzie edytowalnym szkicem. Rozpoznawanie uruchomimy po zatwierdzeniu dostawcy i zasad wysyłania zdjęć.</p>
+              <p>Import ze zdjęcia będzie edytowalnym szkicem, który sprawdzisz przed zapisem.</p>
             </div>
-            <button
-              className="secondary-button"
-              disabled={isLoadingProviderConfiguration}
-              onClick={onOpenIntegrations}
-              type="button"
-            >
-              {isLoadingProviderConfiguration
-                ? "Sprawdzam AI..."
-                : isProviderConfigured
-                  ? "Zarządzaj AI"
-                  : "Konfiguruj AI"}
-            </button>
+            {isProviderConfigured ? (
+              <RecognitionImagePicker
+                accessToken={accessToken}
+                isProviderActive={isProviderActive}
+                onOpenIntegrations={onOpenIntegrations}
+                onRecognized={applyDraft}
+              />
+            ) : (
+              <button
+                className="secondary-button"
+                disabled={isLoadingProviderConfiguration}
+                onClick={onOpenIntegrations}
+                type="button"
+              >
+                {isLoadingProviderConfiguration ? "Sprawdzam AI..." : "Konfiguruj AI"}
+              </button>
+            )}
           </section>
-
-          <RecognitionImagePicker
-            accessToken={accessToken}
-            isProviderActive={isProviderActive}
-            onOpenIntegrations={onOpenIntegrations}
-            onRecognized={applyDraft}
-          />
           {notice && <p className="integration-status" role="status">{notice}</p>}
 
           <form className="recipe-form" onSubmit={submitRecipe}>

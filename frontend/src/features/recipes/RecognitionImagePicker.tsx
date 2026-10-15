@@ -63,8 +63,7 @@ export default function RecognitionImagePicker({
   ]
 
   return (
-    <section className="recognition-picker" aria-labelledby="recognition-heading">
-      <h2 id="recognition-heading">Obraz do rozpoznania</h2>
+    <div className="recognition-picker">
       <p>Wybierz jeden obraz z tekstem przepisu. Samo wybranie pliku niczego nie wysyła.</p>
       <div className="recognition-picker__actions">
         {fileInputs.map(({ id, label, capture }) => (
@@ -127,6 +126,6 @@ export default function RecognitionImagePicker({
       )}
       {isRecognizing && <p role="status">Rozpoznaję przepis, to może potrwać do minuty...</p>}
       {recognition.error && <p className="form-error" role="alert">{recognition.error}</p>}
-    </section>
+    </div>
   )
 }

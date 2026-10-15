@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -178,6 +178,7 @@ describe("recipe workspace", () => {
   })
 
   it("lets the user pick a recognition image, shows the AI notice and allows discarding it", async () => {
+    vi.mocked(getProviderConfiguration).mockResolvedValue({ configured: true, provider: "openai", is_active: true })
     const user = userEvent.setup()
     const originalCreateObjectURL = URL.createObjectURL
     const originalRevokeObjectURL = URL.revokeObjectURL
@@ -188,12 +189,13 @@ describe("recipe workspace", () => {
     try {
       await screen.findByRole("heading", { name: "Moje przepisy" })
       await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
-      expect(screen.getByRole("heading", { name: "Obraz do rozpoznania" })).toBeInTheDocument()
+      await screen.findByLabelText("Wybierz obraz z urządzenia")
+      expect(screen.getByRole("heading", { name: "Odczytaj przepis z fotografii" })).toBeInTheDocument()
       expect(screen.getAllByText("JPG, PNG lub WebP · maks. 5 MB").length).toBeGreaterThan(0)
       expect(screen.queryByRole("note")).not.toBeInTheDocument()
 
       await user.upload(
-        screen.getByLabelText("Wybierz obraz z urządzenia"),
+        await screen.findByLabelText("Wybierz obraz z urządzenia"),
         new File(["image data"], "page.jpg", { type: "image/jpeg" }),
       )
 
@@ -212,11 +214,13 @@ describe("recipe workspace", () => {
   })
 
   it("rejects unsupported and oversized recognition images before any upload", async () => {
+    vi.mocked(getProviderConfiguration).mockResolvedValue({ configured: true, provider: "openai", is_active: true })
     const user = userEvent.setup()
     renderWorkspace()
 
     await screen.findByRole("heading", { name: "Moje przepisy" })
     await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
+    await screen.findByLabelText("Zrób zdjęcie")
 
     fireEvent.change(screen.getByLabelText("Zrób zdjęcie"), {
       target: { files: [new File(["gif"], "page.gif", { type: "image/gif" })] },
@@ -258,8 +262,8 @@ describe("recipe workspace", () => {
 
     async function openFormWithImage(isActive: boolean) {
       vi.mocked(getProviderConfiguration).mockResolvedValue({
-        configured: isActive,
-        provider: isActive ? "openai" : null,
+        configured: true,
+        provider: "openai",
         is_active: isActive,
       })
       const user = userEvent.setup()
@@ -267,7 +271,7 @@ describe("recipe workspace", () => {
       await screen.findByRole("heading", { name: "Moje przepisy" })
       await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
       await user.upload(
-        screen.getByLabelText("Wybierz obraz z urządzenia"),
+        await screen.findByLabelText("Wybierz obraz z urządzenia"),
         new File(["image data"], "page.jpg", { type: "image/jpeg" }),
       )
       return user
@@ -373,14 +377,24 @@ describe("recipe workspace", () => {
     })
   })
 
-  it("shows AI management when a provider is already configured", async () => {
+  it("shows the camera and file buttons inside the AI section when a provider is configured", async () => {
+    const user = userEvent.setup()
+    vi.mocked(getProviderConfiguration).mockResolvedValue({ configured: true, provider: "openai", is_active: true })
+    renderWorkspace()
+
+    await screen.findByRole("heading", { name: "Moje przepisy" })
+    await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
+
+    const aiSection = (await screen.findByRole("heading", { name: "Odczytaj przepis z fotografii" })).closest("section")
+    expect(aiSection).not.toBeNull()
+    expect(within(aiSection as HTMLElement).getByLabelText("Zrób zdjęcie")).toBeInTheDocument()
+    expect(within(aiSection as HTMLElement).getByLabelText("Wybierz obraz z urządzenia")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Konfiguruj AI" })).not.toBeInTheDocument()
+  })
+
+  it("offers AI configuration instead of the image buttons when no provider is configured", async () => {
     const user = userEvent.setup()
     const onOpenIntegrations = vi.fn()
-    vi.mocked(getProviderConfiguration).mockResolvedValue({
-      configured: true,
-      provider: "openai",
-      is_active: true,
-    })
     render(
       <RecipeWorkspace
         accessToken="memory-access-token"
@@ -393,8 +407,10 @@ describe("recipe workspace", () => {
 
     await screen.findByRole("heading", { name: "Moje przepisy" })
     await user.click(screen.getByRole("button", { name: "+ Dodaj nowy" }))
-    await user.click(await screen.findByRole("button", { name: "Zarządzaj AI" }))
+    await user.click(await screen.findByRole("button", { name: "Konfiguruj AI" }))
 
     expect(onOpenIntegrations).toHaveBeenCalledOnce()
+    expect(screen.queryByLabelText("Zrób zdjęcie")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Wybierz obraz z urządzenia")).not.toBeInTheDocument()
   })
 })

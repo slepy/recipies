@@ -709,17 +709,15 @@ h1 {
   flex: 0 0 auto;
 }
 
+.recipe-ai-prompt--ready {
+  align-items: stretch;
+  flex-direction: column;
+}
+
 .recognition-picker {
   display: grid;
   gap: 10px;
-  margin-bottom: 32px;
-}
-
-.recognition-picker h2 {
-  margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 18px;
-  font-weight: 500;
+  width: 100%;
 }
 
 .recognition-picker p,
