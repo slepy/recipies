@@ -125,3 +125,10 @@ SIMPLE_JWT = {
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_SECURE = not DEBUG
 INTEGRATIONS_ENCRYPTION_KEY = os.getenv("INTEGRATIONS_ENCRYPTION_KEY", "")
+
+# Vision-capable model used for recipe-image recognition, per provider (the user does not choose it).
+AI_RECOGNITION_MODELS = {
+    "openai": os.getenv("AI_RECOGNITION_MODEL_OPENAI", "gpt-4o"),
+    "openrouter": os.getenv("AI_RECOGNITION_MODEL_OPENROUTER", "google/gemini-2.5-flash"),
+}
+AI_RECOGNITION_TIMEOUT_SECONDS = 60

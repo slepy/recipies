@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from "react"
 
 import { getProviderConfiguration } from "../integrations/api"
-import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeInput } from "./api"
+import { ApiError, createRecipe, getRecipePhoto, getRecipes, Ingredient, Recipe, RecipeDraft, RecipeInput } from "./api"
+import { imageAccept, imageFormatsHint, validateImage } from "./imageRules"
+import RecognitionImagePicker from "./RecognitionImagePicker"
 
 type RecipeWorkspaceProps = {
   accessToken: string
@@ -11,18 +13,30 @@ type RecipeWorkspaceProps = {
   onSignOut: () => void
 }
 
-type IngredientDraft = Ingredient
+// The form keeps the metric amount as text while it is being typed.
+type IngredientDraft = Omit<Ingredient, "metric_amount"> & { metric_amount: string }
 
-const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "" }
-const maxPhotoSize = 5 * 1024 * 1024
-const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"]
+const emptyIngredient: IngredientDraft = { name: "", amount: "", unit: "", metric_amount: "", metric_unit: "" }
+const metricUnits = ["g", "kg", "ml", "l"] as const
+
+function toIngredientDraft(ingredient: Ingredient): IngredientDraft {
+  return { ...ingredient, metric_amount: ingredient.metric_amount === null ? "" : String(ingredient.metric_amount) }
+}
+
+function dataUrlToFile(dataUrl: string, name: string) {
+  const [header, encoded] = dataUrl.split(",")
+  const type = header.match(/^data:([^;]+)/)?.[1] ?? "image/jpeg"
+  const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+  return new File([bytes], name, { type })
+}
 
 function optionalNumber(value: string) {
   return value === "" ? null : Number(value)
 }
 
 function ingredientSummary(ingredient: Ingredient) {
-  return [ingredient.amount, ingredient.unit, ingredient.name].filter(Boolean).join(" ")
+  const metric = ingredient.metric_amount ? `(${ingredient.metric_amount} ${ingredient.metric_unit})` : ""
+  return [ingredient.amount, ingredient.unit, ingredient.name, metric].filter(Boolean).join(" ")
 }
 
 export default function RecipeWorkspace({
@@ -34,6 +48,8 @@ export default function RecipeWorkspace({
 }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isProviderConfigured, setIsProviderConfigured] = useState(false)
+  const [isProviderActive, setIsProviderActive] = useState(false)
+  const [isDishPhotoProposed, setIsDishPhotoProposed] = useState(false)
   const [isLoadingProviderConfiguration, setIsLoadingProviderConfiguration] = useState(true)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -59,7 +75,9 @@ export default function RecipeWorkspace({
 
     getProviderConfiguration(accessToken)
       .then((configuration) => {
-        if (isCurrent) setIsProviderConfigured(configuration.configured)
+        if (!isCurrent) return
+        setIsProviderConfigured(configuration.configured)
+        setIsProviderActive(configuration.configured && configuration.is_active)
       })
       .catch(() => {
         if (isCurrent) setIsProviderConfigured(false)
@@ -151,20 +169,28 @@ export default function RecipeWorkspace({
       setDishPhoto(null)
       return
     }
-    if (!allowedPhotoTypes.includes(file.type)) {
-      setDishPhoto(null)
-      setPhotoError("Wybierz zdjęcie w formacie JPG, PNG lub WebP.")
-      return
-    }
-    if (file.size > maxPhotoSize) {
-      setDishPhoto(null)
-      setPhotoError("Zdjęcie może mieć maksymalnie 5 MB.")
-      return
-    }
-    setDishPhoto(file)
+    const message = validateImage(file, "zdjęcie")
+    setPhotoError(message)
+    setIsDishPhotoProposed(false)
+    setDishPhoto(message ? null : file)
+  }
+
+  function applyDraft(draft: RecipeDraft) {
+    setTitle(draft.title)
+    setDescription(draft.description)
+    setServings(draft.servings === null ? "" : String(draft.servings))
+    setPrepTime(draft.prep_time_minutes === null ? "" : String(draft.prep_time_minutes))
+    setCookTime(draft.cook_time_minutes === null ? "" : String(draft.cook_time_minutes))
+    setIngredients(draft.ingredients.length > 0 ? draft.ingredients.map(toIngredientDraft) : [{ ...emptyIngredient }])
+    setSteps(draft.steps.length > 0 ? draft.steps : [""])
+    setPhotoError("")
+    setDishPhoto(draft.dish_photo ? dataUrlToFile(draft.dish_photo, "propozycja-ai.jpg") : null)
+    setIsDishPhotoProposed(Boolean(draft.dish_photo))
+    setNotice("Szkic z rozpoznania. Sprawdź i popraw dane, zanim zapiszesz przepis.")
   }
 
   function startNewRecipe() {
+    setNotice("")
     setError("")
     setPhotoError("")
     setIsCreating(true)
@@ -183,12 +209,19 @@ export default function RecipeWorkspace({
       prep_time_minutes: optionalNumber(prepTime),
       cook_time_minutes: optionalNumber(cookTime),
       ingredients: ingredients
-        .map((ingredient) => ({
-          name: ingredient.name.trim(),
-          amount: ingredient.amount.trim(),
-          unit: ingredient.unit.trim(),
-        }))
-        .filter((ingredient) => ingredient.name || ingredient.amount || ingredient.unit),
+        .map((ingredient) => {
+          const metricAmount = optionalNumber(ingredient.metric_amount.trim().replace(",", "."))
+          // a metric measure needs both the number and the unit to be summed later
+          const hasMetric = metricAmount !== null && Number.isFinite(metricAmount) && Boolean(ingredient.metric_unit)
+          return {
+            name: ingredient.name.trim(),
+            amount: ingredient.amount.trim(),
+            unit: ingredient.unit.trim(),
+            metric_amount: hasMetric ? metricAmount : null,
+            metric_unit: hasMetric ? ingredient.metric_unit : "",
+          } satisfies Ingredient
+        })
+        .filter((ingredient) => ingredient.name || ingredient.amount || ingredient.unit || ingredient.metric_amount),
       steps: steps.map((step) => step.trim()).filter(Boolean),
     }
     if (dishPhoto) recipeInput.photo = dishPhoto
@@ -204,6 +237,7 @@ export default function RecipeWorkspace({
       setIngredients([{ ...emptyIngredient }])
       setSteps([""])
       setDishPhoto(null)
+      setIsDishPhotoProposed(false)
       setNotice("Przepis został zapisany w Twojej kolekcji.")
       setIsCreating(false)
     } catch (saveError) {
@@ -243,25 +277,34 @@ export default function RecipeWorkspace({
           <h1 id="recipe-heading">Dodaj przepis</h1>
           <p className="recipe-intro">Zapisz swój przepis, aby wrócić do niego przy planowaniu posiłków.</p>
 
-          <section className="recipe-ai-prompt" aria-labelledby="recipe-ai-heading">
+          <section
+            className={`recipe-ai-prompt${isProviderConfigured ? " recipe-ai-prompt--ready" : ""}`}
+            aria-labelledby="recipe-ai-heading"
+          >
             <div>
               <span className="eyebrow">ALTERNATYWNIE · AI</span>
               <h2 id="recipe-ai-heading">Odczytaj przepis z fotografii</h2>
-              <p>Import ze zdjęcia będzie edytowalnym szkicem. Rozpoznawanie uruchomimy po zatwierdzeniu dostawcy i zasad wysyłania zdjęć.</p>
+              <p>Import ze zdjęcia będzie edytowalnym szkicem, który sprawdzisz przed zapisem.</p>
             </div>
-            <button
-              className="secondary-button"
-              disabled={isLoadingProviderConfiguration}
-              onClick={onOpenIntegrations}
-              type="button"
-            >
-              {isLoadingProviderConfiguration
-                ? "Sprawdzam AI..."
-                : isProviderConfigured
-                  ? "Zarządzaj AI"
-                  : "Konfiguruj AI"}
-            </button>
+            {isProviderConfigured ? (
+              <RecognitionImagePicker
+                accessToken={accessToken}
+                isProviderActive={isProviderActive}
+                onOpenIntegrations={onOpenIntegrations}
+                onRecognized={applyDraft}
+              />
+            ) : (
+              <button
+                className="secondary-button"
+                disabled={isLoadingProviderConfiguration}
+                onClick={onOpenIntegrations}
+                type="button"
+              >
+                {isLoadingProviderConfiguration ? "Sprawdzam AI..." : "Konfiguruj AI"}
+              </button>
+            )}
           </section>
+          {notice && <p className="integration-status" role="status">{notice}</p>}
 
           <form className="recipe-form" onSubmit={submitRecipe}>
             <fieldset className="recipe-section">
@@ -292,19 +335,20 @@ export default function RecipeWorkspace({
                   <span className="recipe-photo-picker">
                     <span>{dishPhoto ? dishPhoto.name : "Wybierz zdjęcie"}</span>
                     <input
-                      accept="image/jpeg,image/png,image/webp"
+                      accept={imageAccept}
                       id="recipe-photo"
                       onChange={(event) => selectDishPhoto(event.target.files?.[0])}
                       type="file"
                     />
                   </span>
-                  <small>JPG, PNG lub WebP · maks. 5 MB</small>
+                  <small>{imageFormatsHint}</small>
                 </label>
                 {photoError && <p className="form-error" role="alert">{photoError}</p>}
                 {dishPhotoPreview && (
                   <div className="recipe-photo-preview">
                     <img src={dishPhotoPreview} alt="Podgląd zdjęcia gotowego dania" />
-                    <button className="text-button" onClick={() => setDishPhoto(null)} type="button">
+                    {isDishPhotoProposed && <small>Propozycja AI: wycięte z obrazu zdjęcie dania. Usuń je albo zastąp własnym.</small>}
+                    <button className="text-button" onClick={() => { setDishPhoto(null); setIsDishPhotoProposed(false) }} type="button">
                       Usuń zdjęcie
                     </button>
                   </div>
@@ -429,6 +473,29 @@ export default function RecipeWorkspace({
                           onChange={(event) => updateIngredient(index, "unit", event.target.value)}
                           value={ingredient.unit}
                         />
+                      </label>
+                      <label className="recipe-field" htmlFor={`ingredient-metric-amount-${index}`}>
+                        <span>Waga lub objętość</span>
+                        <input
+                          id={`ingredient-metric-amount-${index}`}
+                          inputMode="decimal"
+                          maxLength={12}
+                          onChange={(event) => updateIngredient(index, "metric_amount", event.target.value)}
+                          value={ingredient.metric_amount}
+                        />
+                      </label>
+                      <label className="recipe-field" htmlFor={`ingredient-metric-unit-${index}`}>
+                        <span>Miara</span>
+                        <select
+                          id={`ingredient-metric-unit-${index}`}
+                          onChange={(event) => updateIngredient(index, "metric_unit", event.target.value)}
+                          value={ingredient.metric_unit}
+                        >
+                          <option value="">—</option>
+                          {metricUnits.map((unit) => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
                       </label>
                       {ingredients.length > 1 && (
                         <button

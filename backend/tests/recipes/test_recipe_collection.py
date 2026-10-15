@@ -46,7 +46,7 @@ class RecipeCollectionApiTests(TestCase):
                 "servings": 4,
                 "prep_time_minutes": 10,
                 "cook_time_minutes": 30,
-                "ingredients": [{"name": "pomidory", "amount": "500", "unit": "g"}],
+                "ingredients": [{"name": "pomidory", "amount": "500", "unit": "g", "metric_amount": 500, "metric_unit": "g"}],
                 "steps": ["Pokrój pomidory", "Gotuj do miękkości"],
             },
             format="json",
@@ -56,7 +56,30 @@ class RecipeCollectionApiTests(TestCase):
         recipe = Recipe.objects.get()
         self.assertEqual(recipe.owner, self.user)
         self.assertEqual(response.data["ingredients"][0]["name"], "pomidory")
+        self.assertEqual(response.data["ingredients"][0]["metric_amount"], 500)
+        self.assertEqual(response.data["ingredients"][0]["metric_unit"], "g")
         self.assertEqual(response.data["steps"], ["Pokrój pomidory", "Gotuj do miękkości"])
+
+    def test_rejects_a_metric_unit_that_cannot_be_summed(self):
+        response = self.client.post(
+            "/api/recipes/",
+            {"title": "Zupa", "ingredients": [{"name": "sól", "metric_amount": 1, "metric_unit": "szczypta"}]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recipe.objects.exists())
+
+    def test_rejects_a_metric_measure_with_only_one_part(self):
+        for measure in ({"metric_amount": 90}, {"metric_amount": None, "metric_unit": "g"}):
+            response = self.client.post(
+                "/api/recipes/",
+                {"title": "Zupa", "ingredients": [{"name": "chleb", **measure}]},
+                format="json",
+            )
+
+            self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recipe.objects.exists())
 
     def test_title_is_required_but_other_fields_may_be_empty(self):
         empty_recipe = self.client.post("/api/recipes/", {"title": "  "}, format="json")
@@ -127,6 +150,40 @@ class RecipeCollectionApiTests(TestCase):
                     "recipe": json.dumps({"title": "Pomidory z pieca"}),
                     "photo": self.png_upload("dish.gif"),
                 },
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recipe.objects.exists())
+
+    def test_saved_photo_has_no_exif_and_keeps_its_orientation(self):
+        image = Image.new("RGB", (6, 2), color="tomato")
+        exif = Image.Exif()
+        exif[0x0112] = 6  # orientation: rotate 90 degrees on display
+        exif[0x010F] = "SecretCamera"
+        image_data = BytesIO()
+        image.save(image_data, format="JPEG", exif=exif)
+        upload = SimpleUploadedFile("dish.jpg", image_data.getvalue(), content_type="image/jpeg")
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                "/api/recipes/",
+                {"recipe": json.dumps({"title": "Zdjęcie z EXIF"}), "photo": upload},
+                format="multipart",
+            )
+
+            self.assertEqual(response.status_code, 201)
+            with Image.open(Recipe.objects.get().photo.path) as saved:
+                self.assertEqual(len(saved.getexif()), 0)
+                self.assertEqual(saved.size, (2, 6))
+
+    def test_rejects_file_that_is_not_an_image(self):
+        upload = SimpleUploadedFile("dish.png", b"not an image", content_type="image/png")
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                "/api/recipes/",
+                {"recipe": json.dumps({"title": "Fałszywe zdjęcie"}), "photo": upload},
                 format="multipart",
             )
 

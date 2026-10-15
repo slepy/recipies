@@ -16,14 +16,19 @@
 | FR-002 klucz, sprawdzenie, aktywacja, usunięcie | ✅ Zrobione | Sprawdzenie przez endpoint listy modeli dostawcy; nieudany klucz nie nadpisuje poprzedniego |
 | FR-006 izolacja kont, klucz nie wraca w API | ✅ Zrobione | `tests/integrations/test_provider_configuration.py` |
 | QR-001 szyfrowanie klucza | ✅ Zrobione | Fernet, klucz z `INTEGRATIONS_ENCRYPTION_KEY` (ADR-0003) |
-| FR-003–FR-005 rozpoznawanie obrazu | ❌ Brak | Nie ma kodu wysyłającego obraz do dostawcy |
-| FR-007 obszar zdjęcia potrawy | ❌ Brak | Nowe wymaganie z 2026-10-15 |
-| QR-004 limit 60 s | ❌ Brak | Zależy od rozpoznawania |
-| Fazy (sekcja 11) | 2 zrobiona, 1 częściowo (nie wybrano modeli), 3–4 nie zaczęte | |
+| FR-003–FR-005 rozpoznawanie obrazu | ✅ Zrobione (na mockach) | `RecipeImageRecognizer` + `POST /api/recipes/recognize/`: aktywny dostawca, obraz bez EXIF, kontrolowane błędy, nic nie jest zapisywane. Nie uruchomiono na prawdziwym dostawcy |
+| FR-007 obszar zdjęcia potrawy | ✅ Zrobione (na mockach) | Współrzędne 0–1 w odpowiedzi modelu, przycinanie i wycięcie kadru w backendzie (`DishCropper`) z tego samego znormalizowanego obrazu |
+| QR-004 limit 60 s | ✅ Zrobione | `AI_RECOGNITION_TIMEOUT_SECONDS = 60`; timeout daje kontrolowany błąd (test) |
+| Fazy (sekcja 11) | 2–3 zrobione, 1 częściowo, 4 częściowo | |
 
-**Znane problemy:** na `main` (przed scaleniem `feature/add-recipe`) frontend woła `/api/integrations/ai` bez końcowego ukośnika, przez co zapis i usunięcie konfiguracji kończą się błędem 500. Od scalenia `feature/add-recipe` (`f1e9663`) jest to poprawione.
+**Założenie (otwarte pytanie o modele):** domyślne modele to `gpt-4o-mini` (OpenAI) i `openai/gpt-4o-mini` (OpenRouter), konfigurowalne zmiennymi `AI_RECOGNITION_MODEL_OPENAI` i `AI_RECOGNITION_MODEL_OPENROUTER`. Nie zweryfikowano, jak dokładnie model podaje współrzędne obszaru dania; brak lub zły obszar daje szkic bez propozycji kadru.
 
-**Następny krok:** faza 1 dla rozpoznawania (wybór modeli i sprawdzenie warunków dostawców), potem faza 3.
+**Znane problemy:**
+
+- Brak próby na prawdziwych kluczach oraz udokumentowanych warunków retencji dostawców (blokuje udostępnienie importu).
+- Ręczny test dostępności (QR-005) nie był wykonany.
+
+**Następny krok:** wybór i weryfikacja modeli na prawdziwym dostawcy, potem faza 4 (izolacja i gotowość do użycia).
 
 ## 1. Podsumowanie
 
@@ -188,13 +193,13 @@ To wstępna ocena zakresu i dowodów, nie porada prawna ani potwierdzenie zgodno
 | --- | --- | --- | --- |
 | FR-001, AC-001–AC-002 | Test UI i testy backendu dla braku/niepoprawnego JWT | `test_provider_configuration.py`, `IntegrationSettings.test.tsx` | Zrobione |
 | FR-002, AC-003–AC-005 | Test poprawnego i błędnego klucza, nieudanej zmiany i usunięcia | `test_provider_configuration.py`, `test_provider_connection_tester.py` | Zrobione |
-| FR-003, AC-006–AC-008 | Test aktywnego dostawcy, braku konfiguracji i mapowania wyniku | Testy backendu z odpowiedziami fixture | Planowane |
-| FR-004, AC-009–AC-010 | Test jawnej akcji wysyłki i sprzątania pliku | Test UI oraz testy sukcesu, błędu i anulowania | Planowane |
-| FR-005, AC-011–AC-012 | Test autoryzacji, limitu, timeoutu, błędnej odpowiedzi i braku zapisu | Testy backendu z mockiem dostawcy | Planowane |
+| FR-003, AC-006–AC-008 | Test aktywnego dostawcy, braku konfiguracji i mapowania wyniku | `test_recipe_recognition.py`, `test_recipe_image_recognizer.py` | Zrobione (mock) |
+| FR-004, AC-009–AC-010 | Test jawnej akcji wysyłki i sprzątania pliku | `RecipeWorkspace.test.tsx`, `test_recipe_recognition.py` | Zrobione |
+| FR-005, AC-011–AC-012 | Test autoryzacji, limitu, timeoutu, błędnej odpowiedzi i braku zapisu | `test_recipe_recognition.py`, `test_recipe_image_recognizer.py` | Zrobione (mock) |
 | FR-006, AC-013–AC-014 | Test dwóch kont i inspekcja odpowiedzi API | `test_provider_configuration.py` | Zrobione |
-| FR-007, AC-015–AC-018 | Testy backendu z odpowiedziami fixture: poprawny obszar, brak obszaru, obszar poza obrazem lub zbyt mały, obraz z orientacją EXIF | Do utworzenia | Planowane |
+| FR-007, AC-015–AC-018 | Testy backendu z odpowiedziami fixture: poprawny obszar, brak obszaru, obszar poza obrazem lub zbyt mały, obraz z orientacją EXIF | `test_dish_cropper.py`, `test_recipe_recognition.py` | Zrobione |
 | QR-001–QR-003 | Przegląd szyfrowania, sekretów, logów i izolacji | Test zapisu/odczytu oraz przegląd konfiguracji | Zrobione dla konfiguracji; dla rozpoznawania planowane |
-| QR-004–QR-005 | Test limitu czasu i ręczny test dostępności | Testy backendu oraz kontrola po implementacji UI | Planowane |
+| QR-004–QR-005 | Test limitu czasu i ręczny test dostępności | Timeout: `test_recipe_image_recognizer.py`; ręczny test dostępności nie wykonany | QR-004 zrobione, QR-005 planowane |
 
 ## 13. Ryzyka, założenia i decyzje
 

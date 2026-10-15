@@ -1,0 +1,2 @@
+class ProviderNotConfigured(Exception):
+    pass
