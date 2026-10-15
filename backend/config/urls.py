@@ -17,4 +17,5 @@ urlpatterns = [
 	path("api/meal-plans/", include("meal_plans.urls")),
 	path("api/shopping-lists/", include("shopping_lists.urls")),
 	path("api/recipe-sets/", include("recipe_sets.urls")),
+	path("api/ingredients/", include("ingredients.urls")),
 ]

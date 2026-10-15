@@ -9,6 +9,7 @@ import {
   refreshAccessToken,
   register,
 } from "./features/accounts/api"
+import IngredientBase from "./features/ingredients/IngredientBase"
 import IntegrationSettings from "./features/integrations/IntegrationSettings"
 import MealPlanList from "./features/meal-plans/MealPlanList"
 import MealPlanView from "./features/meal-plans/MealPlanView"
@@ -171,6 +172,7 @@ export default function App() {
         { label: "Przepisy", onClick: () => navigate("/recipes") },
         { label: "Plany żywieniowe", onClick: () => navigate("/plans") },
         { label: "Zestawy przepisów", onClick: () => navigate("/sets") },
+        { label: "Baza składników", onClick: () => navigate("/ingredients") },
         { label: "Integracje AI", onClick: () => navigate("/settings/integrations") },
       ],
       onSignOut: signOut,
@@ -185,6 +187,7 @@ export default function App() {
               accessToken={accessToken}
               accountEmail={account.email}
               accountError={error}
+              onOpenIngredients={() => navigate("/ingredients")}
               onOpenIntegrations={() => navigate("/settings/integrations")}
               onOpenPlans={() => navigate("/plans")}
               onOpenRecipeSets={() => navigate("/sets")}
@@ -201,6 +204,7 @@ export default function App() {
         />
         <Route path="/plans/:planId" element={<PlanRoute {...screenProps} />} />
         <Route path="/lists/:listId" element={<ListRoute {...screenProps} />} />
+        <Route path="/ingredients" element={<IngredientBase {...screenProps} />} />
         <Route
           path="/sets"
           element={<RecipeSetList {...screenProps} onOpenSet={(setId) => navigate(`/sets/${setId}`)} />}

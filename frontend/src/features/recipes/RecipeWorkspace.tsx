@@ -14,6 +14,7 @@ type RecipeWorkspaceProps = {
   onOpenRecipeSets?: () => void
   // Extra actions shown on each recipe, such as "Dodaj do zestawu" from the recipe-sets feature.
   renderRecipeActions?: (recipe: Recipe) => ReactNode
+  onOpenIngredients?: () => void
   onSignOut: () => void
 }
 
@@ -51,6 +52,7 @@ export default function RecipeWorkspace({
   onOpenPlans,
   onOpenRecipeSets,
   renderRecipeActions,
+  onOpenIngredients,
   onSignOut,
 }: RecipeWorkspaceProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -270,6 +272,11 @@ export default function RecipeWorkspace({
           {onOpenRecipeSets && (
             <button className="text-button" type="button" onClick={onOpenRecipeSets}>
               Zestawy przepisów
+            </button>
+          )}
+          {onOpenIngredients && (
+            <button className="text-button" type="button" onClick={onOpenIngredients}>
+              Baza składników
             </button>
           )}
           <button className="text-button" type="button" onClick={onOpenIntegrations}>

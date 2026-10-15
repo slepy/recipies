@@ -1463,3 +1463,34 @@ h1 {
   align-items: flex-end;
   gap: 12px;
 }
+
+/* Ingredient knowledge base picker */
+.unit-weight-picker {
+  position: relative;
+}
+
+.unit-weight-picker__options {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+  background: #fff;
+  list-style: none;
+}
+
+.unit-weight-picker__option {
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.unit-weight-picker__option.is-active {
+  outline: 2px solid var(--ink);
+}
+
+.unit-weight-picker__option[aria-disabled="true"] {
+  color: #6b6b6b;
+  cursor: not-allowed;
+}

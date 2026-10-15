@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ingredients.services import UnitWeightLookup
 from meal_plans.services import parse_amount
 from shopping_lists.models import ShoppingListItem
 from shopping_lists.serializers import (
@@ -12,6 +13,7 @@ from shopping_lists.serializers import (
     ShoppingListItemSerializer,
     ShoppingListItemWriteSerializer,
 )
+from shopping_lists.services import CustomItemMeasure
 from shopping_lists.services.ingredient_aggregator import format_metric, metric_base
 
 
@@ -20,7 +22,10 @@ class ItemDetailView(APIView):
 
     def get_item(self, request, list_id, item_id):
         return get_object_or_404(
-            ShoppingListItem, pk=item_id, shopping_list_id=list_id, shopping_list__owner=request.user
+            ShoppingListItem.objects.select_related("shopping_list"),
+            pk=item_id,
+            shopping_list_id=list_id,
+            shopping_list__owner=request.user,
         )
 
     def increase(self, request, item):
@@ -44,6 +49,13 @@ class ItemDetailView(APIView):
                 raise ValidationError({"increase_amount": "Ta pozycja nie ma ilości do zwiększenia."})
             item.amount = round(item.amount + data["increase_amount"], 2)
             item.extra_amount += data["increase_amount"]
+            # With a known unit weight, the grams follow the pieces unless the client sent its own number.
+            if "increase_metric_amount" not in data and base is not None and dimension == "mass":
+                weight = UnitWeightLookup(request.user, [item.name]).grams_per_unit(item.name, item.unit)
+                if weight is not None:
+                    added = data["increase_amount"] * weight
+                    base += added
+                    item.extra_metric += added
         if "increase_metric_amount" in data:
             if base is None:
                 raise ValidationError({"increase_metric_amount": "Ta pozycja nie ma wagi ani objętości do zwiększenia."})
@@ -73,11 +85,16 @@ class ItemDetailView(APIView):
         if "amount" in data:
             item.amount_text = data["amount"]
             item.amount = parse_amount(data["amount"])
+        measure = CustomItemMeasure()
+        if item.origin == ShoppingListItem.CUSTOM:
+            measure.estimate(item, request.user, metric_given=data.get("metric_amount") is not None)
         if "bought" in data:
             item.bought = data["bought"]
             item.bought_amount = item.amount if item.bought else None
             item.bought_metric_base = metric_base(item.metric_amount, item.metric_unit) if item.bought else None
         item.save()
+        if item.origin == ShoppingListItem.CUSTOM:
+            measure.learn(item, request.user)
         return Response(ShoppingListItemSerializer(item).data)
 
     def delete(self, request, list_id, item_id):

@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ingredients.services import UnitWeightLearner
 from recipes.models import Recipe
 from recipes.serializers import RecipeSerializer
 
@@ -36,4 +37,5 @@ class RecipeCollectionView(APIView):
         serializer = RecipeSerializer(data=recipe_data)
         serializer.is_valid(raise_exception=True)
         recipe = serializer.save(owner=request.user)
+        UnitWeightLearner().learn(request.user, recipe.ingredients)
         return Response(RecipeSerializer(recipe).data, status=status.HTTP_201_CREATED)

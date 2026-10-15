@@ -1,5 +1,8 @@
-import { FormEvent, useState } from "react"
+import { FormEvent, useMemo, useRef, useState } from "react"
 
+import { UnitWeight } from "../ingredients/api"
+import UnitWeightPicker from "../ingredients/UnitWeightPicker"
+import { formatGrams, nameKey, parseAmount, unitKey } from "../ingredients/units"
 import {
   addCustomItem,
   CustomItemInput,
@@ -27,7 +30,8 @@ const metricUnits = ["g", "kg", "ml", "l"] as const
 function quantity(item: ListItem) {
   // Custom items keep the amount as typed ("1/2"); recipe items carry a summed number.
   const amount = item.amount_text || (item.amount === null ? "" : String(item.amount))
-  const metric = item.metric_amount === null ? "" : `(${item.metric_amount} ${item.metric_unit})`
+  // An estimated weight comes from the knowledge base, so it is marked as approximate.
+  const metric = item.metric_amount === null ? "" : `(${item.metric_estimated ? "≈ " : ""}${item.metric_amount} ${item.metric_unit})`
   return [amount, item.unit, metric].filter(Boolean).join(" ")
 }
 
@@ -58,6 +62,12 @@ function ItemRow({ item, isBusy, onToggle, onDelete, onIncrease, onResetIncrease
     item.bought && currentBase !== null && item.bought_metric_base !== null
       ? Math.round((currentBase - item.bought_metric_base) / (metricFactor[item.metric_unit] ?? 1) * 100) / 100
       : 0
+  // With a known unit weight the server adds the grams itself; show how many before saving.
+  const addedAmount = Number(moreAmount.trim().replace(",", "."))
+  const increasePreview =
+    item.unit_weight !== null && (item.metric_unit === "g" || item.metric_unit === "kg") && !moreMetric.trim() && moreAmount.trim() && addedAmount > 0
+      ? `${`+${addedAmount} ${item.unit}`.trim()} ≈ +${formatGrams(addedAmount * item.unit_weight)}`
+      : ""
   const missing = [
     missingAmount > 0 ? `${missingAmount} ${item.unit}`.trim() : "",
     missingMetric > 0 ? `${missingMetric} ${item.metric_unit}` : "",
@@ -123,6 +133,7 @@ function ItemRow({ item, isBusy, onToggle, onDelete, onIncrease, onResetIncrease
               />
             </label>
           )}
+          {increasePreview && <p role="status">{increasePreview}</p>}
           <button className="secondary-button" disabled={isBusy} type="submit">Zwiększ</button>
           <button className="text-button" onClick={() => setIsIncreasing(false)} type="button">Anuluj</button>
         </form>
@@ -153,6 +164,9 @@ export default function ShoppingListItems({
   const [metricAmount, setMetricAmount] = useState("")
   const [metricUnit, setMetricUnit] = useState<CustomItemInput["metric_unit"]>("")
   const [nameError, setNameError] = useState("")
+  // The knowledge base entry the user picked; its weight is previewed while name and unit still match it.
+  const [picked, setPicked] = useState<UnitWeight | null>(null)
+  const amountInput = useRef<HTMLInputElement>(null)
   const listId = list.id
   const isBusy = disabled || isSaving
 
@@ -194,7 +208,18 @@ export default function ShoppingListItems({
       setUnit("")
       setMetricAmount("")
       setMetricUnit("")
+      setPicked(null)
     })
+  }
+
+  function pickEntry(entry: UnitWeight) {
+    setName(entry.name)
+    setUnit(entry.unit)
+    setMetricAmount("")
+    setMetricUnit("")
+    setNameError("")
+    setPicked(entry)
+    amountInput.current?.focus()
   }
 
   function row(item: ListItem) {
@@ -211,6 +236,18 @@ export default function ShoppingListItems({
     )
   }
 
+  const takenNames = useMemo(() => new Set(list.items.map((item) => nameKey(item.name))), [list])
+  const pickedAmount = parseAmount(amount)
+  const estimate =
+    picked &&
+    nameKey(name) === nameKey(picked.name) &&
+    unitKey(unit) === unitKey(picked.unit) &&
+    !metricAmount.trim() &&
+    pickedAmount !== null &&
+    pickedAmount > 0
+      ? formatGrams(pickedAmount * picked.grams_per_unit)
+      : ""
+
   const active = list.items.filter((item) => !item.bought)
   const bought = list.items.filter((item) => item.bought)
 
@@ -224,6 +261,7 @@ export default function ShoppingListItems({
       </section>
 
       <form className="plan-form plan-card" onSubmit={addItem} noValidate aria-label="Dodawanie własnej pozycji">
+        <UnitWeightPicker accessToken={accessToken} onPick={pickEntry} takenNames={takenNames} />
         <label className="field" htmlFor="custom-name">
           <span>Własna pozycja</span>
           <input id="custom-name" onChange={(event) => setName(event.target.value)} value={name} />
@@ -231,7 +269,8 @@ export default function ShoppingListItems({
         </label>
         <label className="field" htmlFor="custom-amount">
           <span>Ilość</span>
-          <input id="custom-amount" maxLength={100} onChange={(event) => setAmount(event.target.value)} value={amount} />
+          <input id="custom-amount" maxLength={100} onChange={(event) => setAmount(event.target.value)} ref={amountInput} value={amount} />
+          {estimate && <small role="status">≈ {estimate} według bazy składników</small>}
         </label>
         <label className="field" htmlFor="custom-unit">
           <span>Jednostka</span>

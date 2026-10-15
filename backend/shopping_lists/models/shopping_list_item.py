@@ -19,6 +19,8 @@ class ShoppingListItem(models.Model):
     amount_text = models.CharField(max_length=100, blank=True, default="")
     metric_amount = models.FloatField(null=True, blank=True)
     metric_unit = models.CharField(max_length=2, blank=True, default="")
+    # True when a custom item's weight was worked out from the ingredient knowledge base, not typed in.
+    metric_estimated = models.BooleanField(default=False)
     # True when the same ingredient also appears in a different measure, so this sum covers only part of it.
     partial = models.BooleanField(default=False)
     # What the user added by hand on top of the computed amount; kept across refreshes.

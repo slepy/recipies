@@ -11,7 +11,7 @@ The React app switched screens with component state, so the browser URL never ch
 ## Decision
 
 - Use React Router 7 (the `react-router` package) in declarative mode: `BrowserRouter` in `main.tsx`, with `Routes` declared in `App.tsx`.
-- Initial routes: `/login`, `/register`, `/recipes` and `/settings/integrations`. Meal plans added `/plans`, `/plans/:planId` and `/lists/:listId` (ADR-0005).
+- Initial routes: `/login`, `/register`, `/recipes` and `/settings/integrations`. Meal plans added `/plans`, `/plans/:planId` and `/lists/:listId` (ADR-0005), and the ingredient knowledge base added `/ingredients` (ADR-0007).
 - While the session is being restored, show the loading screen without redirecting. Anonymous visitors are then redirected to `/login`, and signed-in users who reach `/login`, `/register` or an unknown path are redirected to `/recipes`.
 - Feature components keep receiving navigation callbacks (`onOpenIntegrations`, `onBack`) from `App.tsx` instead of importing the router, so they can still be tested without one.
 

@@ -1,7 +1,7 @@
 # System Architecture
 
 > Status: Proposed baseline
-> Updated: 2026-10-15
+> Updated: 2026-10-15 (recipe sets, ADR-0006; ingredient knowledge base, ADR-0007)
 
 ## Goals
 
@@ -65,11 +65,12 @@ backend/
   meal_plans/             # plans, meals per day, and entries (recipe + servings); ingredient scaling
   shopping_lists/         # lists built from a plan, their items, and ingredient summing (ADR-0005)
   recipe_sets/            # named recipe sets, each with its own shopping list (ADR-0006)
+  ingredients/            # per-user unit weights (grams per unit) and the shared ingredient text rules (ADR-0007)
 ```
 
 Each Django app owns one product capability. `accounts` owns user identity, schema, and persistence; `authentication` owns credential checks, registration, JWT lifecycle, and the related HTTP API. Authentication depends on the user repository contract rather than importing ORM operations into use cases. Avoid circular imports. Use Django's built-in ORM and migrations rather than creating a second persistence abstraction without a demonstrated need.
 
-`meal_plans`, `shopping_lists` and `recipe_sets` follow the simple style of `recipes` (models, serializers, views, one-use-case services). `recipe_sets` depends on `shopping_lists`, which depends on `meal_plans`, which depends on `recipes`; none of them point back. See ADR-0005 and ADR-0006.
+`meal_plans`, `shopping_lists`, `recipe_sets` and `ingredients` follow the simple style of `recipes` (models, serializers, views, one-use-case services). `recipe_sets` depends on `shopping_lists`, which depends on `meal_plans`, which depends on `recipes`; none of them point back. See ADR-0005 and ADR-0006. `recipes`, `meal_plans` and `shopping_lists` also depend on `ingredients`, which imports none of them and receives plain values; it owns the ingredient text rules (name key, unit key, amount parser). See ADR-0007.
 
 `integrations` owns user-specific external provider configuration and credential encryption. It does not own recipe recognition or recipe persistence; those remain with the future recipe feature.
 
@@ -117,6 +118,7 @@ frontend/src/
     meal-plans/           # plan list and plan screens, meal sections, recipe picker
     shopping-lists/       # shopping list screen, its item list and its API operations
     recipe-sets/          # recipe set list and set screens, "add to set" on a recipe
+    ingredients/          # knowledge base screen, product picker, ingredient text helpers
 ```
 
 This is the intended direction for the initial frontend, not a mandate to create every folder up front. Routing uses React Router (ADR-0004); routes are declared in `App.tsx` until an `app/` module is needed, and feature screens receive navigation callbacks rather than importing the router. A feature owns its screens, feature-specific components, and API operations. `shared/ui` must not depend on product features or make network requests. Features may compose shared UI; shared UI must not import feature code. Keep API calls behind a small shared transport boundary and feature-owned API functions rather than scattering `fetch` calls across visual components.

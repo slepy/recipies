@@ -45,6 +45,8 @@ function item(overrides: Partial<ListItem>): ListItem {
     amount_text: "",
     metric_amount: 750,
     metric_unit: "ml",
+    metric_estimated: false,
+    unit_weight: null,
     partial: false,
     bought: false,
     bought_amount: null,
